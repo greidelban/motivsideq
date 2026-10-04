@@ -29,6 +29,9 @@ const LEGACY_PATHS: [string, string][] = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Solo in sviluppo: permette di aprire l'app anche da 127.0.0.1 (archivio del
+  // browser separato da localhost, utile per provare account di prova).
+  allowedDevOrigins: ["127.0.0.1"],
   experimental: {
     // Le pagine già viste (e quelle del menu, precaricate) restano in memoria per
     // 5 minuti: il cambio di scheda è immediato, senza attese né scatti.

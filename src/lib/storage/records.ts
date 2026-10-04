@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 // Dati locali "pronti al cloud": ogni elemento è un record con i metadati di
-// sincronizzazione (stessi campi delle tabelle in supabase/proposta/schema_v2.sql).
+// sincronizzazione (stessi campi delle tabelle in supabase/migrations/).
 // Qui c'è solo logica pura, senza browser: si prova con Vitest.
 
 /** Elenco di elementi con una chiave (id o giorno). */

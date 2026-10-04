@@ -111,6 +111,7 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
     for (const k of deletes) current.delete(k);
     rebuild(def.name);
     notify(def.name);
+    changeListeners.forEach((l) => l(def.name));
     persist(
       (b) =>
         b.write(
@@ -131,7 +132,113 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
     records.set(def.name, new Map());
     rebuild(def.name);
     notify(def.name);
+    changeListeners.forEach((l) => l(def.name));
     persist((b) => b.purge(def.name), def.name);
+  }
+
+  // --- Per la sincronizzazione ------------------------------------------------
+
+  const changeListeners = new Set<(name: string) => void>();
+
+  /** Avvisa a ogni modifica fatta dall'utente (non per quelle arrivate dal cloud). */
+  function onLocalChange(cb: (name: string) => void) {
+    changeListeners.add(cb);
+    return () => changeListeners.delete(cb);
+  }
+
+  /**
+   * Segna come inviati i record indicati, ma solo se nel frattempo non sono
+   * cambiati (stessa updatedAt): una modifica fatta durante l'invio resta in coda.
+   */
+  function markClean(name: string, sent: readonly { key: string; updatedAt: string }[]) {
+    const current = records.get(name);
+    if (!current) return;
+    const puts: StoredRecord[] = [];
+    for (const { key, updatedAt } of sent) {
+      const r = current.get(key);
+      if (r && r.dirty && r.updatedAt === updatedAt) {
+        const clean = { ...r, dirty: false };
+        current.set(key, clean);
+        puts.push(clean);
+      }
+    }
+    if (puts.length) persist((b) => b.write(puts, []), name);
+  }
+
+  /**
+   * Applica i record scaricati dal cloud. Vince la modifica più recente: una
+   * modifica locale non ancora inviata e più nuova resta (partirà al prossimo invio).
+   * Restituisce quanti record sono cambiati.
+   */
+  function applyRemote(name: string, incoming: readonly Omit<StoredRecord, "pos" | "dirty" | "collection">[]): number {
+    const current = records.get(name);
+    if (!current) return 0;
+    let maxPos = -1;
+    for (const r of current.values()) maxPos = Math.max(maxPos, r.pos);
+    const puts: StoredRecord[] = [];
+    for (const r of incoming) {
+      const local = current.get(r.key);
+      if (local?.dirty && local.updatedAt > r.updatedAt) continue;
+      if (local && !local.dirty && local.updatedAt === r.updatedAt && local.deletedAt === r.deletedAt) continue;
+      const next: StoredRecord = { ...r, collection: name, dirty: false, pos: local?.pos ?? ++maxPos };
+      current.set(r.key, next);
+      puts.push(next);
+    }
+    if (puts.length) {
+      rebuild(name);
+      notify(name);
+      persist((b) => b.write(puts, []), name);
+    }
+    return puts.length;
+  }
+
+  /**
+   * Rimette "da inviare" tutto un elenco (es. dati di questo telefono passati a
+   * un altro account: il nuovo account non li ha ancora). Le cancellazioni
+   * restano solo come segnale: non servono a un account che non ha mai avuto quei dati.
+   */
+  function markAllDirty(name: string) {
+    const current = records.get(name);
+    if (!current) return;
+    const puts: StoredRecord[] = [];
+    const deletes: string[] = [];
+    for (const r of current.values()) {
+      if (r.deletedAt !== null) {
+        deletes.push(r.key);
+      } else if (!r.dirty) {
+        const next = { ...r, dirty: true };
+        current.set(r.key, next);
+        puts.push(next);
+      }
+    }
+    for (const k of deletes) current.delete(k);
+    if (puts.length || deletes.length) {
+      persist(
+        (b) =>
+          b.write(
+            puts,
+            deletes.map((key) => ({ collection: name, key })),
+          ),
+        name,
+      );
+    }
+  }
+
+  /** Toglie davvero dal dispositivo dei record già allineati (riallineamento completo). */
+  function removeLocal(name: string, keys: readonly string[]) {
+    const current = records.get(name);
+    if (!current || keys.length === 0) return;
+    for (const k of keys) current.delete(k);
+    rebuild(name);
+    notify(name);
+    persist(
+      (b) =>
+        b.write(
+          [],
+          keys.map((key) => ({ collection: name, key })),
+        ),
+      name,
+    );
   }
 
   function subscribe(name: string, cb: () => void) {
@@ -172,6 +279,11 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
     /** Record modificati e non ancora inviati al cloud (per la sincronizzazione). */
     dirty: (name: string) => [...(records.get(name)?.values() ?? [])].filter((r) => r.dirty),
     records: (name: string) => [...(records.get(name)?.values() ?? [])],
+    onLocalChange,
+    markClean,
+    applyRemote,
+    removeLocal,
+    markAllDirty,
     migrationReport: () => migration,
     backendKind: () => backend?.kind ?? null,
     lastWriteError: () => writeError,

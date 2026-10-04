@@ -1,7 +1,27 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 },
-    { "name": "dev-attach", "url": "http://localhost:3000" }
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "dev-attach",
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "dev-local-db",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:local-db"
+      ],
+      "port": 3000
+    }
   ]
 }

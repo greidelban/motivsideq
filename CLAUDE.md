@@ -9,12 +9,13 @@
   - URL e identificativi sono in inglese; i commenti nel codice restano in italiano.
 - **Dati: ancora niente login né backend, ma tutto è pronto per il cloud.**
   - Dati dell'utente in IndexedDB: `localDb.store(DEFS.x)` (`src/lib/storage/db.ts`, `definitions.ts`). Stessa forma di prima (get/set/use/clear), validati con zod.
-  - Ogni elemento è un record con id, `createdAt`, `updatedAt`, `deletedAt` (cancellazione morbida) e `dirty` (da inviare): i nomi seguono `supabase/proposta/schema_v2.sql`.
+  - Ogni elemento è un record con id, `createdAt`, `updatedAt`, `deletedAt` (cancellazione morbida) e `dirty` (da inviare): i nomi seguono le migrazioni in `supabase/migrations/`.
   - Impostazioni del solo dispositivo (sfondo, animazioni, durata del calcolo) in `localStorage` con `defineStore` (`local-store.ts`).
   - Un nuovo tipo di dato dell'utente va aggiunto in `definitions.ts` **e** in `backup-stores.ts` (un test controlla che l'export sia completo).
   - Le schermate che leggono dati dell'utente aspettano `useLocalData()` prima di mostrarli.
   - I giorni ("AAAA-MM-GG") si calcolano sempre sul telefono nel fuso dell'utente; i pesi si salvano in kg (kg/lb solo nell'interfaccia, `src/lib/units.ts`).
-- Il codice del login con Supabase è in `archivio/login/`, escluso da build, typecheck e lint: torna in `src/` nella fase A2.
+- **Account (facoltativo):** progetto Supabase in UE, chiavi in `.env.local` (mai su git, mai in chat). Il login avviene nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`): niente sessioni lato server. Senza configurazione l'account non compare. `archivio/login/` è il vecchio login (cookie lato server), non più usato.
+- Il database: migrazioni in `supabase/migrations/`, si applicano incollando `npm run db:bundle` → `supabase/setup-completo.sql` nello SQL Editor. Ogni nuova migrazione va provata in `src/lib/storage/schema.test.ts`.
 - Priorità: migliorare e perfezionare l'app.
 - Ordine dei moduli:
   - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n en/it ✅, luce viva + Accendi ✅, Salute prima versione ✅ (profilo nelle Impostazioni, Allenamento per tipi, Cibo a inserimento manuale, Ciclo);
@@ -25,7 +26,7 @@
   - ciclo: metodo del calendario, solo maggiorenni, consenso con la versione dell'informativa (`CYCLE_POLICY_VERSION`), dati cancellabili davvero;
   - il Ciclo esiste solo se `canUseCycle(profile, consent)` (`src/lib/health/cycle-access.ts`) non dice "hidden", cioè con sesso femmina: menu, schermate, schede e insight passano tutti da lì;
   - se il sesso cambia da femmina si chiede se conservare (in pausa) o cancellare i dati: mai cancellarli da soli;
-  - l'SQL per Supabase è in `supabase/proposta/schema_v2.sql` (riassunto in `DA_FARE.md`, sezione 1b).
+  - lo schema del database è in `supabase/migrations/` (riassunto in `DA_FARE.md`, sezione 1b), provato da `src/lib/storage/schema.test.ts` su un Postgres in memoria (PGlite).
 - **Chat in incognito** (`/chat`, tasto a sinistra delle Impostazioni in Oggi, icona: fumetto tratteggiato): solo la schermata, senza motore (vedi i divieti sotto). Ha un lucchetto finché il piano non la include (`chat: ["pro"]` in `src/lib/entitlements.ts`).
 - Alla fine di ogni modulo:
   - test Vitest della logica di calcolo;
@@ -42,7 +43,7 @@
   - niente cifratura end-to-end per ora (lo schema è pronto per farla solo sul testo del diario);
   - codice a barre: prima solo il nostro database; Open Food Facts più avanti solo per precompilare, citando la fonte (la regola qui sotto si cambia allora);
   - foto dei progressi solo sul telefono, compresse, mai nel cloud (priorità bassa);
-  - accesso con Apple: codice pronto, attivo solo quando l'app andrà sugli store;
+  - accesso al lancio con email, Apple e Google (pulsanti nativi su iOS); primo lancio sull'App Store, senza Mac: build con Codemagic;
   - sincronizzazione: vince l'ultima modifica; righe cancellate eliminate davvero dopo 180 giorni (un telefono offline da più tempo prima invia le sue modifiche, poi riscarica tutto); il limite giornaliero non si consuma due volte su un invio ritentato.
 - **Luce viva** (sfondo WebGL, src/components/light/):
   - sfondi in `src/lib/light/backgrounds.ts`, colori in `src/lib/light/palettes.ts` (10 temi, 4 ruoli: light/mid/deep/accent = `PAL_*` negli shader); scelta salvata con `appearance`;

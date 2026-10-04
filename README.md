@@ -12,7 +12,7 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
   - le impostazioni del dispositivo (sfondo, animazioni, durata del calcolo) restano in `localStorage` (`local-store.ts`): servono subito e non vanno nel cloud;
   - al primo avvio i vecchi dati di `localStorage` passano a IndexedDB; si cancellano solo dopo aver verificato la copia (`migration.ts`); se IndexedDB non si apre, l'app continua come prima con `localStorage`.
 - **Copia di sicurezza:** Impostazioni → "Esporta i miei dati" (file JSON) e "Importa da un file" (unisce senza perdere nulla).
-- Il login con Supabase era pronto ed è in `archivio/login/`: tornerà con il backend. Le attività rimandate sono in **[DA_FARE.md](DA_FARE.md)**.
+- **Account facoltativo** (Impostazioni → Account, pagina `/account`): accesso, registrazione con conferma via email e recupero password, nel browser con Supabase (progetto in UE). La sincronizzazione dei dati è il prossimo passo. Le attività rimandate sono in **[DA_FARE.md](DA_FARE.md)**.
 - **Mente** è completo:
   - routine "Risveglio" (4 esercizi, circa 4 minuti);
   - esercizi singoli: Reazione, Colori (Stroop), Calcolo rapido (Zetamac) e Tabella di Schulte;
@@ -35,7 +35,7 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
 - Nel calcolo rapido si vedono il tempo di ogni risposta, la media, la risposta più veloce e più lenta, e il tempo medio per operazione.
 - **Lingue:** inglese come base, italiano tradotto. Si riconosce la lingua del browser e si cambia in Impostazioni (cookie `ritmo-locale`).
 - **Salute** (Allenamento, Cibo, Ciclo) ha una prima versione locale. Il Ciclo compare solo a chi indica sesso femmina (`canUseCycle` in `src/lib/health/cycle-access.ts`); il peso si può vedere in kg o lb, ma si salva in kg.
-- **Database (in preparazione):** lo schema v2 per Supabase è in `supabase/proposta/schema_v2.sql`, provato con `node supabase/proposta/schema_v2.check.mjs`.
+- **Database (in preparazione):** lo schema per Supabase è in `supabase/migrations/`, provato a ogni `npm test` su un Postgres in memoria. `npm run db:bundle` le unisce in un file da incollare nello SQL Editor.
 
 ## Aggiungere una lingua
 
@@ -54,6 +54,7 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
 | `npm run lint` | ESLint |
 | `npm run build` | build di produzione |
 | `npm run icons` | rigenera le icone PNG della PWA |
+| `npm run db:bundle` | unisce le migrazioni in `supabase/setup-completo.sql` da incollare nello SQL Editor di Supabase |
 
 Per provarla sul telefono, nella stessa rete Wi-Fi:
 
@@ -76,10 +77,10 @@ src/components/light/   renderer WebGL, shader, esercizio "Accendi"
 src/lib/storage/        archivio locale (IndexedDB + localStorage), migrazione, export/import
 src/components/         componenti UI (stile "Liquid Atlas": vetro, bordi luminosi, card piatte)
 src/proxy.ts            Content-Security-Policy con nonce per richiesta
-supabase/migrations/    schema SQL per il futuro backend (non ancora usato)
-supabase/proposta/      schema v2 approvato, da trasformare in migrazioni (fase A2)
+supabase/migrations/    schema del database (Supabase), provato da src/lib/storage/schema.test.ts
 docs/SCHEMA.md          documentazione del database futuro
-archivio/login/         codice del login, messo da parte
+archivio/login/         vecchio login con sessioni lato server (non più usato)
+src/lib/supabase/       client Supabase nel browser e configurazione
 ```
 
 ## Principi

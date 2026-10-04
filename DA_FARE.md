@@ -3,22 +3,31 @@
 Fase 2 (piano approvato): A1 dati pronti al cloud ✅ → E ciclo solo per le donne ✅ → **A2 Supabase** → check-in giornaliero → B ciclo → D allenamento → C alimentazione.
 
 ## 1. Account e backend (Supabase): fase A2
-Il login era già pronto ed è stato messo da parte in `archivio/login/` (escluso da build, typecheck e lint).
-- [ ] Creare il progetto Supabase gratuito (regione **Central EU (Frankfurt)**).
-- [ ] Copiare URL e chiavi in `.env.local` (modello: `archivio/login/.env.example`). La chiave `service_role` va solo nel file, mai in chat né in variabili `NEXT_PUBLIC_`.
-- [ ] Trasformare `supabase/proposta/schema_v2.sql` in migrazioni (sezione 1b) ed eseguirle nello SQL Editor, in ordine.
+Progetto Supabase `idghdzlznxhqlpaqdmfy` (Central EU, Frankfurt). Chiavi in `.env.local` (escluso da git): l'app usa la chiave **publishable**.
+Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`). Il vecchio codice in `archivio/login/` (cookie lato server, testi in italiano) non serve più.
+- [x] Progetto Supabase gratuito creato (regione **Central EU (Frankfurt)**).
+- [x] URL e chiavi in `.env.local` (modello: `archivio/login/.env.example`).
+- [ ] **Sicurezza: la chiave `service_role` è stata incollata in chat il 4/10/2026.** Sostituirla:
+  - *Project Settings → API Keys*: creare una chiave **secret** (`sb_secret_…`) e metterla in `.env.local` al posto di `SUPABASE_SERVICE_ROLE_KEY`;
+  - poi *Legacy API keys → Disable* (disattiva le vecchie anon e service_role). L'app non ne risente: usa la publishable.
+- [x] Schema v2 trasformato in migrazioni (`supabase/migrations/`, 5 file).
+- [x] Migrazioni eseguite nello SQL Editor il 4/10/2026 con `supabase/setup-completo.sql` (`npm run db:bundle`). Verificato dall'esterno: 10 tabelle, accesso negato agli anonimi, funzioni del ciclo protette.
 - [ ] *Authentication → URL Configuration*: Site URL `http://localhost:3000` e Redirect URL `http://localhost:3000/auth/confirm`.
 - [ ] *Authentication → Emails*: template con `token_hash`.
-  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/today`
+  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
   - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
 - [ ] Lunghezza minima della password: 8. "Confirm email" attivo.
-- [ ] Accesso con Google (gratuito). Accesso con Apple: codice pronto, da attivare solo quando l'app andrà sugli store (serve l'Apple Developer Program, 99 $ l'anno).
-- [ ] SMTP proprio (Resend o Brevo, piano gratuito): quello integrato manda email solo ai membri del progetto.
-- [ ] Rimettere in `src/` il codice di `archivio/login/` e reinstallare `@supabase/supabase-js`, `@supabase/ssr` e `server-only`. Poi:
-  - riunire il proxy di sola CSP con quello completo (`archivio/login/src/proxy.ts`);
-  - il login resta facoltativo: l'app funziona anche senza account.
-- [ ] **Sincronizzazione** (i record locali sono già pronti: `localDb.dirty(nome)`):
-  - prima su tre tabelle semplici (`body_weights`, `brain_results`, `workout_sessions`), poi sulle altre;
+- [x] Login nel browser: accedi, crea account, password dimenticata, conferma via email. Facoltativo: senza account l'app resta locale.
+- [ ] Provare registrazione e accesso con un'email vera (dopo aver impostato URL e template qui sopra).
+- [ ] Accesso con Google e con Apple **al lancio** (vedi sezione 4: pulsanti nativi nell'app iOS).
+- [ ] SMTP proprio (Resend o Brevo, piano gratuito): quello integrato manda poche email all'ora.
+- [ ] Eseguire nello SQL Editor la migrazione `20261004130000_upsert_grants.sql` (permessi per l'invio dal telefono): `npm run db:bundle -- 20261004130000` la mette da sola in `supabase/setup-completo.sql`.
+- [x] **Motore di sincronizzazione** (`src/lib/sync/`): invio in blocchi + download incrementale, vince la modifica più recente, ripresa dopo errori di rete, limite giornaliero, riallineamento dopo 180 giorni, protezione contro dati di un altro account. 8 test con un finto server (`engine.test.ts`). Stato nella pagina Account.
+- [x] **Supabase sul PC** (Docker Desktop): `npm run db:local` lo avvia con le stesse migrazioni, `npm run dev:local-db` apre l'app collegata a lui, `npm run test:e2e` prova la sincronizzazione con account finti (5 prove: primo accesso, due telefoni, conflitti, separazione tra account, limite giornaliero). Provato anche dalle schermate: registrazione e allenamento arrivato da solo nel database.
+- [ ] Estendere la sincronizzazione alle altre tabelle:
+  - [x] peso, Mente, allenamenti (`src/lib/sync/tables.ts`);
+  - [ ] pasti, profilo, check-in/diario, ciclo (consenso con `grant_cycle_consent`, cancellazione con `delete_cycle_data`);
+  - [ ] indicatore discreto anche fuori dalla pagina Account (es. in Oggi), solo quando qualcosa non va;
   - invio in blocchi con "upsert", poi download di ciò che è cambiato (`server_updated_at`, con un minuto di sovrapposizione);
   - indicatore di stato discreto (sincronizzato / in coda / offline);
   - limite giornaliero raggiunto (codice `RL001`): i dati restano in coda, messaggio comprensibile, nuovo tentativo il giorno dopo;
@@ -26,14 +35,14 @@ Il login era già pronto ed è stato messo da parte in `archivio/login/` (esclus
   - consenso al ciclo e cancellazione totale (`cycle-wiped-at`) si inviano con le funzioni del database, non come righe.
 - [ ] **Primo accesso:** caricare i dati già sul telefono senza duplicarli né perderli (gli id sono già UUID), con test.
 - [ ] Pulizia mensile delle righe cancellate da più di 180 giorni (pg_cron), anche sul telefono dopo l'invio.
-- [ ] Test dello schema in Vitest: `supabase/proposta/schema_v2.check.mjs` con PGlite come dipendenza di sviluppo.
+- [x] Test dello schema in Vitest sulle migrazioni vere (`src/lib/storage/schema.test.ts`, PGlite).
 - [ ] Blocco app facoltativo (PIN o biometria con WebAuthn) per diario e ciclo.
 - [ ] Ricordarsi che il piano gratuito mette in pausa il progetto dopo 7 giorni senza attività.
 
 ## 1b. Schema v2 (sincronizzazione, ciclo solo per le donne, Salute)
-Approvato. È in `supabase/proposta/schema_v2.sql` (fuori da `migrations/`: non si esegue). Provato su un Postgres in memoria con 31 controlli: `node supabase/proposta/schema_v2.check.mjs` (serve `@electric-sql/pglite`).
+Approvato e trasformato nelle migrazioni di `supabase/migrations/`, provate a ogni `npm test` su un Postgres in memoria (31 controlli).
 - [x] Approvare la proposta.
-- [ ] Riscrivere `profiles` e `body_weights` nella migrazione core e dividere il resto in migrazioni nuove.
+- [x] `profiles` e `body_weights` riscritti nella core; il resto diviso in migrazioni nuove.
 
 Decisioni principali:
 - **ID e sincronizzazione:** UUID generati sul telefono; `created_at`, `updated_at` (ora del telefono, decide i conflitti: vince la modifica più recente), `deleted_at` (cancellazione morbida), `server_updated_at` (solo server, per scaricare le novità).
@@ -61,6 +70,43 @@ Decisioni principali:
 - [ ] Test automatici delle regole RLS (un utente non deve vedere i dati di un altro).
 
 ## 4. Pubblicazione
+**Lancio: App Store di Apple, e se possibile Google Play in contemporanea** (deciso il 4/10/2026); web dopo. Stesso codice per entrambi (Capacitor).
+
+**In pausa** finché non arriva il **D-U-N-S** (richiesto dall'utente il 4/10/2026): gli account Apple e Google saranno **come organizzazione** (su Google Play niente test obbligatorio con 12 tester). Nel frattempo si sistema l'app.
+
+### Android (Google Play)
+- [ ] App Android con Capacitor: si compila **su Windows** con Android Studio (gratuito), oppure con Codemagic insieme a iOS.
+- [ ] Account **Google Play Console**: 25 $ una volta sola.
+- [ ] ⚠️ **Account personali nuovi:** prima della pubblicazione serve un **test chiuso con almeno 12 tester per 14 giorni di fila**. Per lanciare insieme a iOS bisogna partire con il test chiuso almeno 2-3 settimane prima. (Gli account come organizzazione non hanno questo obbligo, ma serve il D-U-N-S.)
+- [ ] Moduli obbligatori nella Play Console:
+  - "Sicurezza dei dati" (quali dati si raccolgono e perché);
+  - dichiarazione per le **app di salute** (il ciclo è un dato sensibile);
+  - informativa privacy e **pagina web per chiedere la cancellazione dell'account** (Google vuole un URL, oltre al tasto nell'app);
+  - classificazione dei contenuti.
+- [ ] Livello di API Android richiesto da Google al momento dell'invio (target API aggiornato).
+- [ ] Accesso: Google con il pulsante nativo (Credential Manager), Apple tramite pagina web (su Android non è obbligatorio), email.
+- [ ] Abbonamenti con Google Play Billing (RevenueCat gestisce sia Apple sia Google).
+- [ ] Notifiche: da Android 13 serve chiedere il permesso.
+- [ ] Pacchetto AAB firmato con "Play App Signing".
+
+### iOS (App Store)
+Proposta in attesa di conferma:
+- [ ] App iOS con **Capacitor** sopra il codice attuale (Next.js in export statico), senza riscrivere l'app.
+- [ ] Export statico: lingua decisa nel browser (non più dal cookie letto sul server), CSP in un meta tag invece del proxy, niente redirect lato server.
+- [ ] **Niente Mac:** si compila nel cloud con **Codemagic** (piano gratuito, Mac nel cloud), che manda l'app su TestFlight. Lo sviluppo continua su Windows nel browser.
+- [ ] **Apple Developer Program** (99 $ l'anno): iscriversi qualche giorno prima della fase iOS (da privato bastano 1-2 giorni; come azienda serve il D-U-N-S e può volerci di più). Serve per TestFlight, per l'App Store e per configurare "Accedi con Apple".
+- [ ] **Accesso al lancio: email + Apple + Google** (deciso il 4/10/2026). Nell'app iOS si usano i pulsanti nativi (Google blocca l'accesso dentro le WebView): il plugin restituisce un token e Supabase lo verifica con `signInWithIdToken`. Sul web si usa il normale reindirizzamento.
+  - Google: client OAuth in Google Cloud Console (gratuito, si può fare subito).
+  - Apple: Service ID e chiave dal Developer Program.
+- [ ] Regole Apple prima dell'invio:
+  - cancellazione dell'account dentro l'app;
+  - Sign in with Apple obbligatorio se si offre l'accesso con Google;
+  - abbonamenti solo con gli acquisti in-app di Apple (non Stripe), es. con RevenueCat;
+  - informativa privacy e pagina di supporto raggiungibili da un URL pubblico;
+  - "privacy label" in App Store Connect (dati raccolti) e classificazione per età;
+  - l'app deve fare più di un sito web impacchettato (notifiche, vibrazione, funzioni offline aiutano).
+- [ ] Email di conferma e recupero password con **codice a 6 cifre** invece del link (in un'app non serve gestire i link che riaprono l'app).
+- [ ] TestFlight per provarla sul proprio iPhone prima dell'invio.
 - [x] Git inizializzato e pubblicato su GitHub: https://github.com/greidelban/motivsideq (pubblico).
 - [ ] Scegliere l'hosting (es. Vercel, piano gratuito) e un dominio; HTTPS obbligatorio per la PWA.
 - [ ] Impostare le variabili d'ambiente in produzione e aggiungere l'URL di produzione ai Redirect URLs di Supabase.

@@ -1,11 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Per ora il proxy applica solo la Content-Security-Policy con un nonce per
-// richiesta. Sessione e redirect del login torneranno con il backend
-// (versione completa in archivio/login/src/proxy.ts).
+// Il proxy applica la Content-Security-Policy con un nonce per richiesta.
+// L'account non usa sessioni lato server: accesso e sincronizzazione avvengono
+// nel browser (src/lib/supabase/client.ts), quindi qui non serve altro.
+
+/** Origine del progetto Supabase (https; http solo per quello sul PC), o null se non configurato. */
+function supabaseOrigin(): string | null {
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+    const local = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+    return url.protocol === "https:" || (local && url.protocol === "http:") ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
+  const supabase = supabaseOrigin();
   return [
     "default-src 'self'",
     // React in sviluppo usa eval per gli stack trace; in produzione no.
@@ -15,8 +27,9 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    // In sviluppo serve anche il WebSocket dell'aggiornamento a caldo di Next.
-    `connect-src 'self'${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
+    // Supabase (account e sincronizzazione), se configurato. In sviluppo serve
+    // anche il WebSocket dell'aggiornamento a caldo di Next.
+    `connect-src 'self'${supabase ? ` ${supabase}` : ""}${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",

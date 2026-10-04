@@ -43,3 +43,6 @@ next-env.d.ts
 
 # impostazioni personali di Claude Code
 .claude/settings.local.json
+
+# Migrazioni unite per lo SQL Editor (si rigenera con npm run db:bundle)
+supabase/setup-completo.sql

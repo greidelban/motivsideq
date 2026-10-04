@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AccountPanel } from "@/components/account/AccountPanel";
 import { BackupPanel } from "@/components/BackupPanel";
 import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader title={t.title} back={{ href: "/today", label: dict.common.back }} />
       <div className="space-y-4">
+        <AccountPanel />
         <ProfilePanel />
         <WallpaperButton />
         <MotionPicker />

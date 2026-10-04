@@ -2,7 +2,7 @@
 
 > **Per ora non è in uso:** l'app salva i dati sul dispositivo (IndexedDB, vedi README, "Stato attuale").
 >
-> **Schema v2 approvato** (fase A2): `supabase/proposta/schema_v2.sql`. Dove questo documento e la v2 non coincidono, vale la v2:
+> **Schema v2** (fase A2): le migrazioni in `supabase/migrations/`. Dove questo documento e le migrazioni non coincidono, valgono le migrazioni:
 > - regole di sincronizzazione su ogni tabella privata: id generati sul telefono, `created_at`, `updated_at` (vince l'ultima modifica), `deleted_at` (cancellazione morbida), `server_updated_at` (scritto solo dal server);
 > - righe "una al giorno" con chiave (utente, giorno): `body_weights`, `journal_entries`, `cycle_day_logs`;
 > - tabelle nuove: `brain_results` (Mente), `write_counters` (limiti giornalieri);

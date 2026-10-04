@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { JetBrains_Mono, Onest } from "next/font/google";
 import { LivingLight } from "@/components/light/LivingLight";
 import { MotionSync } from "@/components/light/MotionSync";
+import { SyncRunner } from "@/components/account/SyncRunner";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { I18nProvider } from "@/i18n/client";
 import { getI18n } from "@/i18n/server";
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </I18nProvider>
         <ServiceWorkerRegister />
+        <SyncRunner />
       </body>
     </html>
   );
