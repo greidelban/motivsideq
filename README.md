@@ -30,7 +30,7 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
   - Funziona anche con lo sfondo Classico: durante l'esercizio la luce si accende comunque.
 - Nel calcolo rapido si vedono il tempo di ogni risposta, la media, la risposta più veloce e più lenta, e il tempo medio per operazione.
 - **Lingue:** inglese come base, italiano tradotto. Si riconosce la lingua del browser e si cambia in Impostazioni (cookie `ritmo-locale`).
-- Diario, Palestra e Cibo sono i prossimi moduli.
+- Salute (Allenamento, Cibo, Ciclo) ha una prima versione locale; il Diario è il prossimo modulo.
 
 ## Aggiungere una lingua
 
@@ -61,7 +61,7 @@ Poi apri `http://<IP-del-PC>:3000`. Per installarla come PWA serve HTTPS, quindi
 ## Struttura
 
 ```
-src/app/(app)/          pagine con la barra in basso (/today, /mind, /journal, /gym, /food, /settings)
+src/app/(app)/          pagine con la barra in basso (/today, /mind, /journal, /health/*, /chat, /settings)
 src/app/(focus)/        schermate a tutto schermo (i giochi di Mente)
 src/i18n/               lingue: configurazione, dizionari, formattazione di numeri e durate
 src/lib/                logica pura, con test *.test.ts accanto

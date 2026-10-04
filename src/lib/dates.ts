@@ -11,6 +11,14 @@ export function addDays(key: string, days: number): string {
   return localDateKey(new Date(y, m - 1, d + days));
 }
 
+/** Giorni da `from` a `to` (negativo se `to` viene prima). */
+export function daysBetween(from: string, to: string): number {
+  const [y1, m1, d1] = from.split("-").map(Number);
+  const [y2, m2, d2] = to.split("-").map(Number);
+  // UTC: nessun salto per l'ora legale.
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
+}
+
 /**
  * Giorni consecutivi con almeno un'attività. Se oggi non c'è ancora nulla la
  * serie resta valida fino a ieri (la giornata non è finita).

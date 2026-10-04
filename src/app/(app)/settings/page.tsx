@@ -4,6 +4,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocalDataPanel } from "@/components/LocalDataPanel";
 import { MotionPicker } from "@/components/MotionPicker";
+import { ProfilePanel } from "@/components/ProfilePanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { WallpaperButton } from "@/components/wallpaper/WallpaperButton";
 import { getI18n } from "@/i18n/server";
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader title={t.title} back={{ href: "/today", label: dict.common.back }} />
       <div className="space-y-4">
+        <ProfilePanel />
         <WallpaperButton />
         <MotionPicker />
         <LanguagePicker />

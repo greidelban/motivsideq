@@ -19,9 +19,12 @@ const LEGACY_PATHS: [string, string][] = [
   ["/mente/calcolo", "/mind/math"],
   ["/mente/:path*", "/mind/:path*"],
   ["/diario", "/journal"],
-  ["/allenamento", "/gym"],
-  ["/alimentazione", "/food"],
+  ["/allenamento", "/health/training"],
+  ["/alimentazione", "/health/food"],
   ["/impostazioni", "/settings"],
+  // Palestra e Cibo sono confluiti in Salute.
+  ["/gym", "/health/training"],
+  ["/food", "/health/food"],
 ];
 
 const nextConfig: NextConfig = {
@@ -32,7 +35,11 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 300, static: 300 },
   },
   async redirects() {
-    return LEGACY_PATHS.map(([source, destination]) => ({ source, destination, permanent: true }));
+    return [
+      ...LEGACY_PATHS.map(([source, destination]) => ({ source, destination, permanent: true })),
+      // Salute non ha una pagina propria: si apre su Allenamento.
+      { source: "/health", destination: "/health/training", permanent: false },
+    ];
   },
   async headers() {
     return [

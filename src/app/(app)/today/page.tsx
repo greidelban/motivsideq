@@ -12,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const SECTIONS = [
   { href: "/journal", key: "journal" },
-  { href: "/gym", key: "gym" },
-  { href: "/food", key: "food" },
+  { href: "/health/training", key: "training" },
+  { href: "/health/food", key: "food" },
 ] as const;
 
 export default async function TodayPage() {

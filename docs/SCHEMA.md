@@ -71,7 +71,7 @@ Trigger `profiles_guard`: età minima 14 anni, data di nascita bloccata, regole 
 
 ## Allenamento ⏳
 - `exercises`: `owner_id` null = catalogo (~30 nel seed); `name`, `muscle_group`, `equipment`.
-- `workout_sessions`: `performed_on`, `started_at`, `notes`.
+- `workout_sessions`: `performed_on`, `activity_type` (tipi di `src/lib/health/workouts.ts`), `duration_min`, `intensity` 1–3, `notes` (SQL pronto in DA_FARE.md, sezione 1b). Le kcal si calcolano (MET × peso × ore).
 - `workout_sets`: `session_id`, `exercise_id`, `position`, `target_reps`, `reps`, `weight_kg`, `rpe` 1–10, `execution_note`. Una FK composta `(session_id, user_id)` impedisce di aggiungere serie alle sessioni di altri.
 - Vista `exercise_session_stats` (`security_invoker`): peso massimo, volume, 1RM Epley, ripetizioni completate, RPE massimo per esercizio e sessione.
 
@@ -79,6 +79,7 @@ Trigger `profiles_guard`: età minima 14 anni, data di nascita bloccata, regole 
 - `foods` (**condivisa**): valori per 100 g, porzione, `status` (`pending`/`verified`/`hidden`), contatori. Controlli: |kcal − (4P+4C+9G)| ≤ max(20%, 10 kcal) e P+C+G ≤ 100. Stato e contatori li scrivono solo i trigger. L'autore può modificare solo finché l'alimento non è verificato, e ogni modifica azzera i voti. Il client non può cancellare. Limite: 20 alimenti al giorno per utente.
 - `food_votes`: PK `(food_id, user_id)`, visibili solo a chi li ha dati, mai sul proprio alimento, massimo 100 al giorno.
 - `food_logs`: copia di nome, kcal e macro al momento della registrazione; `food_id` null per l'inserimento manuale rapido.
+  Oggi l'app usa solo l'inserimento manuale, con `meal` (`breakfast`/`lunch`/`dinner`/`snack`).
 - `saved_meals`, `saved_meal_items`.
 - Seed: ~45 alimenti comuni, verificati e senza autore.
 
@@ -88,7 +89,7 @@ Trigger `profiles_guard`: età minima 14 anni, data di nascita bloccata, regole 
 ## Ciclo ⏳ (dati sanitari, art. 9 GDPR; solo maggiorenni)
 - `health_consents`: `scope` (`cycle`), `policy_version`, `granted_at`, `revoked_at`. Il client può solo leggere; scrivono `grant_cycle_consent()` e `delete_cycle_data()`.
 - `cycle_periods`: `start_date`, `end_date`.
-- `cycle_day_logs`: `log_date`, `symptoms` (lista chiusa), `hunger` 1–5, `notes`, `UNIQUE(user_id, log_date)`.
+- `cycle_day_logs`: `log_date`, `flow` (`spotting`…`heavy`), `symptoms` (lista chiusa, come `SYMPTOMS` in `src/lib/health/cycle.ts`), `hunger` 1–5, `notes`, `UNIQUE(user_id, log_date)`.
 - Policy: proprietario **e** `has_cycle_consent()` **e** `current_user_is_adult()`.
 
 ## Futuro (solo documentato)

@@ -1,31 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { IconSettings } from "@/components/icons";
+import { IconChatIncognito, IconLock, IconSettings } from "@/components/icons";
 import { PageHeader } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
+import { interpolate } from "@/i18n/format";
 import { partOfDay } from "@/lib/dates";
-import { useHydrated } from "@/lib/storage/local-store";
+import { LOCAL_USER, can } from "@/lib/entitlements";
+import { useNow } from "@/lib/use-now";
 
-// Saluto e data dipendono dall'ora del dispositivo: si calcolano nel browser.
+const ROUND_BUTTON = "glass-clear grid size-11 place-items-center rounded-full text-ink-2 hover:text-ink";
+// Il lucchetto sparirà da solo quando il piano includerà la chat (entitlements.ts).
+const chatLocked = !can(LOCAL_USER, "chat");
+
+// Saluto, data e ora dipendono dall'orologio del dispositivo: si calcolano nel
+// browser e si aggiornano a ogni minuto.
 export function TodayHeader() {
   const { locale, dict } = useI18n();
-  const hydrated = useHydrated();
-  const now = new Date();
-  const date = new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(now);
+  const now = useNow();
+  const date = now && new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(now);
+  const time = now && new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(now);
 
   return (
     <PageHeader
-      eyebrow={hydrated ? date : " "}
-      title={hydrated ? dict.today.greeting[partOfDay(now)] : dict.today.greeting.fallback}
+      eyebrow={now ? interpolate(dict.today.dateTime, { date: date!, time: time! }) : " "}
+      title={now ? dict.today.greeting[partOfDay(now)] : dict.today.greeting.fallback}
       action={
-        <Link
-          href="/settings"
-          aria-label={dict.common.settings}
-          className="glass-clear grid size-11 place-items-center rounded-full text-ink-2 hover:text-ink"
-        >
-          <IconSettings width={20} height={20} />
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link href="/chat" aria-label={chatLocked ? dict.chat.openLocked : dict.chat.open} className={`${ROUND_BUTTON} relative`}>
+            <IconChatIncognito width={21} height={21} />
+            {chatLocked && (
+              <span className="absolute -right-0.5 -bottom-0.5 grid size-[18px] place-items-center rounded-full bg-primary text-on-primary">
+                <IconLock width={11} height={11} strokeWidth={2.4} />
+              </span>
+            )}
+          </Link>
+          <Link href="/settings" aria-label={dict.common.settings} className={ROUND_BUTTON}>
+            <IconSettings width={20} height={20} />
+          </Link>
+        </div>
       }
     />
   );

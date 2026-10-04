@@ -3,27 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { IconFood, IconJournal, IconMind, IconToday, IconWorkout } from "@/components/icons";
+import { IconHealth, IconJournal, IconMind, IconToday } from "@/components/icons";
 import { useI18n } from "@/i18n/client";
 
+// `section`: la parte di URL che accende la scheda (Salute porta ad Allenamento
+// ma resta accesa anche su Cibo e Ciclo).
 const TABS = [
-  { href: "/today", key: "today", Icon: IconToday },
-  { href: "/mind", key: "mind", Icon: IconMind },
-  { href: "/journal", key: "journal", Icon: IconJournal },
-  { href: "/gym", key: "gym", Icon: IconWorkout },
-  { href: "/food", key: "food", Icon: IconFood },
+  { href: "/today", section: "/today", key: "today", Icon: IconToday },
+  { href: "/mind", section: "/mind", key: "mind", Icon: IconMind },
+  { href: "/journal", section: "/journal", key: "journal", Icon: IconJournal },
+  { href: "/health/training", section: "/health", key: "health", Icon: IconHealth },
 ] as const;
 
-const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+const isActive = (pathname: string, section: string) => pathname === section || pathname.startsWith(`${section}/`);
 
 export function TabBar() {
   const pathname = usePathname();
   const { dict } = useI18n();
   // La scheda toccata si accende subito, senza aspettare la pagina: vale finché
   // si è ancora sulla pagina di partenza (poi comanda l'URL).
-  const [pending, setPending] = useState<{ href: string; from: string } | null>(null);
-  const shownHref = pending && pending.from === pathname ? pending.href : TABS.find((t) => isActive(pathname, t.href))?.href;
-  const index = TABS.findIndex((t) => t.href === shownHref);
+  const [pending, setPending] = useState<{ section: string; from: string } | null>(null);
+  const shown = pending && pending.from === pathname ? pending.section : TABS.find((t) => isActive(pathname, t.section))?.section;
+  const index = TABS.findIndex((t) => t.section === shown);
 
   return (
     <nav
@@ -44,15 +45,15 @@ export function TabBar() {
           />
         </div>
         <ul className="relative flex h-full items-stretch">
-          {TABS.map(({ href, key, Icon }) => {
-            const active = href === shownHref;
+          {TABS.map(({ href, section, key, Icon }) => {
+            const active = section === shown;
             return (
               <li key={href} className="flex-1">
                 <Link
                   href={href}
                   prefetch
-                  aria-current={isActive(pathname, href) ? "page" : undefined}
-                  onClick={() => setPending({ href, from: pathname })}
+                  aria-current={isActive(pathname, section) ? "page" : undefined}
+                  onClick={() => setPending({ section, from: pathname })}
                   className={`flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-caption2 font-medium transition-colors duration-150 ${
                     active ? "text-ink" : "text-muted hover:text-ink-2"
                   }`}

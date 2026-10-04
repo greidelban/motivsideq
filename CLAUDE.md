@@ -11,8 +11,13 @@
 - Il codice del login con Supabase è in `archivio/login/`, escluso da build, typecheck e lint. Account, Supabase, privacy definitiva e pubblicazione sono in `DA_FARE.md`: sono secondari, non vanno ripresi se l'utente non lo chiede.
 - Priorità: migliorare e perfezionare l'app.
 - Ordine dei moduli:
-  - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n en/it ✅, luce viva + Accendi ✅;
-  - prossimi: onboarding (locale) → diario → palestra → alimentazione → insight → ciclo.
+  - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n en/it ✅, luce viva + Accendi ✅, Salute prima versione ✅ (profilo nelle Impostazioni, Allenamento per tipi, Cibo a inserimento manuale, Ciclo);
+  - prossimi: onboarding (locale) → diario → palestra dettagliata (serie ed esercizi) → insight.
+- **Salute** (`/health/*`, logica in `src/lib/health/` e `src/lib/profile/`): Palestra e Cibo sono confluiti qui insieme al Ciclo; nella barra in basso c'è solo "Salute".
+  - stime: metabolismo Mifflin-St Jeor × attività; kcal degli allenamenti = MET × peso × ore;
+  - ciclo: metodo del calendario, solo maggiorenni, consenso locale, dati cancellabili; nascosto a chi indica sesso maschile;
+  - l'SQL per quando arriverà Supabase è in `DA_FARE.md` (sezione 1b).
+- **Chat in incognito** (`/chat`, tasto a sinistra delle Impostazioni in Oggi, icona: fumetto tratteggiato): solo la schermata, senza motore (vedi i divieti sotto). Ha un lucchetto finché il piano non la include (`chat: ["pro"]` in `src/lib/entitlements.ts`).
 - Alla fine di ogni modulo:
   - test Vitest della logica di calcolo;
   - `npm run typecheck`, `npm run lint`, `npm run build`;
