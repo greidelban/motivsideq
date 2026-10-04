@@ -1,13 +1,11 @@
 "use client";
 
-import { z } from "zod";
 import { localDateKey } from "@/lib/dates";
-import { defineStore } from "@/lib/storage/local-store";
-import { type BrainResult, MAX_STORED_RESULTS, brainResultSchema } from "./history";
+import { localDb } from "@/lib/storage/db";
+import { DEFS } from "@/lib/storage/definitions";
+import { type BrainResult, MAX_STORED_RESULTS } from "./history";
 
-const EMPTY: BrainResult[] = [];
-
-export const brainResults = defineStore("brain-results", z.array(brainResultSchema), EMPTY);
+export const brainResults = localDb.store(DEFS.brainResults);
 
 export function saveBrainResult(input: Omit<BrainResult, "id" | "at" | "day">): BrainResult {
   const now = new Date();

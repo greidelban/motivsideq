@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackupPanel } from "@/components/BackupPanel";
 import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocalDataPanel } from "@/components/LocalDataPanel";
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         <MotionPicker />
         <LanguagePicker />
         <LocalDataPanel />
+        <BackupPanel />
 
         <Panel>
           <h2 className="mb-2 text-headline font-semibold">{t.disclaimerTitle}</h2>

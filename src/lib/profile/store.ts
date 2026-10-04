@@ -1,13 +1,9 @@
 "use client";
 
-import { z } from "zod";
-import { defineStore } from "@/lib/storage/local-store";
-import { type BodyWeight, type Profile, bodyWeightSchema, profileSchema } from "./profile";
+import { localDb } from "@/lib/storage/db";
+import { DEFS } from "@/lib/storage/definitions";
 
-const EMPTY_PROFILE: Profile = {};
-const NO_WEIGHTS: BodyWeight[] = [];
-
-export const profile = defineStore("profile", profileSchema, EMPTY_PROFILE);
+export const profile = localDb.store(DEFS.profile);
 
 /** Storico del peso (come la tabella body_weights): l'ultimo valore è il peso attuale. */
-export const bodyWeights = defineStore("body-weights", z.array(bodyWeightSchema).max(5000), NO_WEIGHTS);
+export const bodyWeights = localDb.store(DEFS.bodyWeights);

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
 import { interpolate, plural } from "@/i18n/format";
@@ -18,26 +19,35 @@ import {
   toggleSymptom,
 } from "@/lib/health/cycle";
 import { cycleConsent, cycleDayLogs, cyclePeriods, deleteCycleData } from "@/lib/health/store";
-import { profileAgeGroup } from "@/lib/profile/profile";
+import { canUseCycle } from "@/lib/health/cycle-access";
+import { CYCLE_POLICY_VERSION } from "@/lib/legal";
 import { profile } from "@/lib/profile/store";
-import { useHydrated } from "@/lib/storage/local-store";
+import { useLocalData } from "@/lib/storage/db";
 import { Chip, ChipGroup, Notice } from "./Chip";
 import { DeleteButton, useShortDate } from "./shared";
 
 export function CycleView() {
-  const hydrated = useHydrated();
+  const hydrated = useLocalData();
   if (!hydrated) return <div className="min-h-96" />;
   return <Cycle />;
 }
 
-// Prima di tutto: età (solo maggiorenni) e consenso. Senza, nessun dato si legge né si scrive.
+// Prima di tutto: sesso, età (solo maggiorenni) e consenso, decisi da canUseCycle.
+// Senza, nessun dato si legge né si scrive.
 function Cycle() {
   const { dict } = useI18n();
   const t = dict.health.cycle;
-  const group = profileAgeGroup(profile.use());
+  const router = useRouter();
   const consent = cycleConsent.use();
+  const access = canUseCycle(profile.use(), consent);
 
-  if (group === null) {
+  // Il Ciclo non deve comparire da nessuna parte: anche aprendo l'indirizzo a mano si torna ad Allenamento.
+  useEffect(() => {
+    if (access === "hidden") router.replace("/health/training");
+  }, [access, router]);
+
+  if (access === "hidden") return null;
+  if (access === "needBirth") {
     return (
       <Panel>
         <h2 className="mb-2 text-headline font-semibold">{t.needBirth.title}</h2>
@@ -48,7 +58,7 @@ function Cycle() {
       </Panel>
     );
   }
-  if (group !== "adult") {
+  if (access === "tooYoung") {
     return (
       <Panel>
         <h2 className="mb-2 text-headline font-semibold">{t.adultsOnly.title}</h2>
@@ -56,16 +66,38 @@ function Cycle() {
       </Panel>
     );
   }
-  if (!consent) {
+  if (access === "needConsent") {
     return (
       <Panel>
         <h2 className="mb-2 text-headline font-semibold">{t.consent.title}</h2>
         <p className="text-subhead text-ink-2">{t.consent.text}</p>
         <p className="mt-3 text-footnote text-muted">{t.consent.method}</p>
-        <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => cycleConsent.set({ acceptedAt: new Date().toISOString() })}>
+        <button
+          type="button"
+          className="btn btn-primary mt-4 w-full"
+          onClick={() => cycleConsent.set({ acceptedAt: new Date().toISOString(), policyVersion: CYCLE_POLICY_VERSION, enabled: true })}
+        >
           {t.consent.accept}
         </button>
       </Panel>
+    );
+  }
+  if (access === "paused") {
+    return (
+      <>
+        <Panel>
+          <h2 className="mb-2 text-headline font-semibold">{t.paused.title}</h2>
+          <p className="text-subhead text-ink-2">{t.paused.text}</p>
+          <button
+            type="button"
+            className="btn btn-primary mt-4 w-full"
+            onClick={() => cycleConsent.set((c) => (c ? { ...c, enabled: true } : c))}
+          >
+            {t.paused.resume}
+          </button>
+        </Panel>
+        <RemoveAll />
+      </>
     );
   }
   return <Tracker />;

@@ -1,22 +1,31 @@
 @AGENTS.md
 
-# Progetto Ritmo: note per chi ci lavora
+# Progetto GetControl: note per chi ci lavora
 
 - **Lingue:** l'inglese è la lingua base, l'italiano la prima traduzione, altre lingue arriveranno.
   - Nessun testo visibile scritto nei componenti: tutto passa da `src/i18n/dictionaries/*.ts` (`useI18n()` nei client, `getI18n()` nei server component).
   - Le chiavi si aggiungono prima in `en.ts`; TypeScript e i test (`src/i18n/i18n.test.ts`) segnalano le traduzioni mancanti.
   - Numeri e durate si formattano con `src/i18n/format.ts`.
   - URL e identificativi sono in inglese; i commenti nel codice restano in italiano.
-- **Fase attuale: niente login né backend.** I dati stanno in `localStorage` tramite `defineStore` (`src/lib/storage/local-store.ts`), sempre validati con zod.
-- Il codice del login con Supabase è in `archivio/login/`, escluso da build, typecheck e lint. Account, Supabase, privacy definitiva e pubblicazione sono in `DA_FARE.md`: sono secondari, non vanno ripresi se l'utente non lo chiede.
+- **Dati: ancora niente login né backend, ma tutto è pronto per il cloud.**
+  - Dati dell'utente in IndexedDB: `localDb.store(DEFS.x)` (`src/lib/storage/db.ts`, `definitions.ts`). Stessa forma di prima (get/set/use/clear), validati con zod.
+  - Ogni elemento è un record con id, `createdAt`, `updatedAt`, `deletedAt` (cancellazione morbida) e `dirty` (da inviare): i nomi seguono `supabase/proposta/schema_v2.sql`.
+  - Impostazioni del solo dispositivo (sfondo, animazioni, durata del calcolo) in `localStorage` con `defineStore` (`local-store.ts`).
+  - Un nuovo tipo di dato dell'utente va aggiunto in `definitions.ts` **e** in `backup-stores.ts` (un test controlla che l'export sia completo).
+  - Le schermate che leggono dati dell'utente aspettano `useLocalData()` prima di mostrarli.
+  - I giorni ("AAAA-MM-GG") si calcolano sempre sul telefono nel fuso dell'utente; i pesi si salvano in kg (kg/lb solo nell'interfaccia, `src/lib/units.ts`).
+- Il codice del login con Supabase è in `archivio/login/`, escluso da build, typecheck e lint: torna in `src/` nella fase A2.
 - Priorità: migliorare e perfezionare l'app.
 - Ordine dei moduli:
   - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n en/it ✅, luce viva + Accendi ✅, Salute prima versione ✅ (profilo nelle Impostazioni, Allenamento per tipi, Cibo a inserimento manuale, Ciclo);
-  - prossimi: onboarding (locale) → diario → palestra dettagliata (serie ed esercizi) → insight.
+  - **fase 2** (piano approvato dall'utente): A1 dati pronti al cloud ✅ → E ciclo solo per le donne ✅ → A2 Supabase (account, sincronizzazione, export, blocco app) → check-in giornaliero → B ciclo → D allenamento → C alimentazione;
+  - dopo: onboarding (locale), diario completo, insight.
 - **Salute** (`/health/*`, logica in `src/lib/health/` e `src/lib/profile/`): Palestra e Cibo sono confluiti qui insieme al Ciclo; nella barra in basso c'è solo "Salute".
   - stime: metabolismo Mifflin-St Jeor × attività; kcal degli allenamenti = MET × peso × ore;
-  - ciclo: metodo del calendario, solo maggiorenni, consenso locale, dati cancellabili; nascosto a chi indica sesso maschile;
-  - l'SQL per quando arriverà Supabase è in `DA_FARE.md` (sezione 1b).
+  - ciclo: metodo del calendario, solo maggiorenni, consenso con la versione dell'informativa (`CYCLE_POLICY_VERSION`), dati cancellabili davvero;
+  - il Ciclo esiste solo se `canUseCycle(profile, consent)` (`src/lib/health/cycle-access.ts`) non dice "hidden", cioè con sesso femmina: menu, schermate, schede e insight passano tutti da lì;
+  - se il sesso cambia da femmina si chiede se conservare (in pausa) o cancellare i dati: mai cancellarli da soli;
+  - l'SQL per Supabase è in `supabase/proposta/schema_v2.sql` (riassunto in `DA_FARE.md`, sezione 1b).
 - **Chat in incognito** (`/chat`, tasto a sinistra delle Impostazioni in Oggi, icona: fumetto tratteggiato): solo la schermata, senza motore (vedi i divieti sotto). Ha un lucchetto finché il piano non la include (`chat: ["pro"]` in `src/lib/entitlements.ts`).
 - Alla fine di ogni modulo:
   - test Vitest della logica di calcolo;
@@ -25,8 +34,16 @@
 - Decisioni prese con l'utente:
   - età minima 14 anni (mese e anno di nascita);
   - dai 14 ai 17 anni niente obiettivo "dimagrire" né obiettivo calorico; ciclo solo da maggiorenni;
-  - l'energia è un solo dato e sta nel diario;
-  - tolleranza delle kcal sugli alimenti: 20% o 10 kcal.
+  - la data di nascita si può correggere: le regole per i minorenni si ricalcolano sempre dalla data attuale (app e database);
+  - umore, energia, fame e sonno hanno una sola fonte: il check-in giornaliero (lo usano diario, ciclo e insight);
+  - rapporti, protezione e pillola restano solo sul telefono e non si sincronizzano (servirebbe un consenso a parte);
+  - soglie minime delle calorie: 1500 uomini, 1200 donne;
+  - tolleranza delle kcal sugli alimenti: 20% o 10 kcal;
+  - niente cifratura end-to-end per ora (lo schema è pronto per farla solo sul testo del diario);
+  - codice a barre: prima solo il nostro database; Open Food Facts più avanti solo per precompilare, citando la fonte (la regola qui sotto si cambia allora);
+  - foto dei progressi solo sul telefono, compresse, mai nel cloud (priorità bassa);
+  - accesso con Apple: codice pronto, attivo solo quando l'app andrà sugli store;
+  - sincronizzazione: vince l'ultima modifica; righe cancellate eliminate davvero dopo 180 giorni (un telefono offline da più tempo prima invia le sue modifiche, poi riscarica tutto); il limite giornaliero non si consuma due volte su un invio ritentato.
 - **Luce viva** (sfondo WebGL, src/components/light/):
   - sfondi in `src/lib/light/backgrounds.ts`, colori in `src/lib/light/palettes.ts` (10 temi, 4 ruoli: light/mid/deep/accent = `PAL_*` negli shader); scelta salvata con `appearance`;
   - mai colori fissi negli shader (tranne quelli "naturali", es. temperatura delle stelle): usare i ruoli della palette;

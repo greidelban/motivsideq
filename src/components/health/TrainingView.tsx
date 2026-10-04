@@ -20,7 +20,7 @@ import {
 import { pulseLight } from "@/lib/light/bus";
 import { latestWeight } from "@/lib/profile/profile";
 import { bodyWeights } from "@/lib/profile/store";
-import { useHydrated } from "@/lib/storage/local-store";
+import { useLocalData } from "@/lib/storage/db";
 import { Chip, Notice } from "./Chip";
 import { DeleteButton, ProfileMissing, useShortDate } from "./shared";
 
@@ -28,7 +28,7 @@ const INTENSITY_KEYS = { 1: "light", 2: "moderate", 3: "hard" } as const;
 const HISTORY_LIMIT = 30;
 
 export function TrainingView() {
-  const hydrated = useHydrated();
+  const hydrated = useLocalData();
   if (!hydrated) return <div className="min-h-96" />;
   return <Training />;
 }

@@ -12,12 +12,12 @@ import { addFood, foodEntries } from "@/lib/health/store";
 import { pulseLight } from "@/lib/light/bus";
 import { latestWeight } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
-import { useHydrated } from "@/lib/storage/local-store";
+import { useLocalData } from "@/lib/storage/db";
 import { Chip, ChipGroup, Notice } from "./Chip";
 import { DeleteButton, ProfileMissing, parseDecimal } from "./shared";
 
 export function FoodView() {
-  const hydrated = useHydrated();
+  const hydrated = useLocalData();
   if (!hydrated) return <div className="min-h-96" />;
   return <Food />;
 }

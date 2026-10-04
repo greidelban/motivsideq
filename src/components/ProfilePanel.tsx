@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Chip, ChipGroup, Notice } from "@/components/health/Chip";
 import { parseDecimal } from "@/components/health/shared";
 import { Panel } from "@/components/ui";
@@ -8,32 +8,39 @@ import { useI18n } from "@/i18n/client";
 import { formatNumber, interpolate } from "@/i18n/format";
 import { MIN_AGE } from "@/lib/age";
 import { localDateKey } from "@/lib/dates";
+import { hasCycleData } from "@/lib/health/cycle-access";
 import { dailyTargets } from "@/lib/health/energy";
+import { cycleConsent, cycleDayLogs, cyclePeriods, deleteCycleData } from "@/lib/health/store";
 import {
   ACTIVITY_LEVELS,
   type ActivityLevel,
   GOALS,
   type Goal,
   HEIGHT_RANGE,
+  NAME_MAX,
   type Profile,
   SEXES,
   type Sex,
   WEIGHT_RANGE,
+  cleanName,
   isBirthAllowed,
   latestWeight,
   profileAgeGroup,
   upsertWeight,
 } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
-import { useHydrated } from "@/lib/storage/local-store";
+import { useLocalData } from "@/lib/storage/db";
+import { WEIGHT_UNITS, type WeightUnit, fromKg, toKg } from "@/lib/units";
 
 const OLDEST = 100;
+/** Attesa dopo l'ultima modifica prima di salvare (mentre si scrive non si salva a ogni tasto). */
+const AUTOSAVE_DELAY = 600;
 
-// Profilo (sesso, nascita, altezza, peso, attività, obiettivo): serve ad
-// Allenamento e Cibo per le stime, e al Ciclo per l'età.
+// Profilo (nome, sesso, nascita, altezza, peso, attività, obiettivo): serve ad
+// Allenamento e Cibo per le stime, al Ciclo per sesso ed età, a Oggi per il saluto.
 export function ProfilePanel() {
   const { dict } = useI18n();
-  const hydrated = useHydrated();
+  const hydrated = useLocalData();
   const saved = profile.use();
   const weights = bodyWeights.use();
   return (
@@ -46,18 +53,33 @@ export function ProfilePanel() {
   );
 }
 
+// Salvataggio automatico: ogni modifica valida si salva da sola poco dopo
+// (e comunque quando si lascia la pagina). Un valore non valido mentre si
+// scrive non cancella quello salvato.
 function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeight: number | null }) {
   const { locale, dict } = useI18n();
   const t = dict.settings.profile;
   const now = new Date();
+  const showWeight = (kg: number, u: WeightUnit) => {
+    const v = fromKg(kg, u);
+    return formatNumber(locale, v, v % 1 ? 1 : 0);
+  };
+
+  const [name, setName] = useState(initial.displayName ?? "");
   const [sex, setSex] = useState<Sex | undefined>(initial.sex);
   const [month, setMonth] = useState(initial.birthMonth?.toString() ?? "");
   const [year, setYear] = useState(initial.birthYear?.toString() ?? "");
   const [height, setHeight] = useState(initial.heightCm?.toString() ?? "");
-  const [weight, setWeight] = useState(initialWeight === null ? "" : formatNumber(locale, initialWeight, initialWeight % 1 ? 1 : 0));
+  const [unit, setUnit] = useState<WeightUnit>(initial.weightUnit ?? "kg");
+  const [weight, setWeight] = useState(initialWeight === null ? "" : showWeight(initialWeight, initial.weightUnit ?? "kg"));
   const [activity, setActivity] = useState<ActivityLevel | "">(initial.activityLevel ?? "");
   const [goal, setGoal] = useState<Goal | undefined>(initial.goal);
-  const [status, setStatus] = useState<"saved" | "invalid" | null>(null);
+  const [savedOnce, setSavedOnce] = useState(false);
+  // Sesso scelto in attesa della risposta sui dati del ciclo (se non è più "femmina").
+  const [askSex, setAskSex] = useState<{ value: Sex | undefined } | null>(null);
+  const periods = cyclePeriods.use();
+  const logs = cycleDayLogs.use();
+  const consent = cycleConsent.use();
 
   const birthYear = year ? Number(year) : undefined;
   const birthMonth = month ? Number(month) : undefined;
@@ -69,56 +91,171 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
   const heightValue = parseDecimal(height);
   const weightValue = parseDecimal(weight);
   const heightOk = height.trim() === "" || (heightValue >= HEIGHT_RANGE.min && heightValue <= HEIGHT_RANGE.max);
-  const weightOk = weight.trim() === "" || (weightValue >= WEIGHT_RANGE.min && weightValue <= WEIGHT_RANGE.max);
+  const weightKg = Number.isFinite(weightValue) ? toKg(weightValue, unit) : NaN;
+  const weightOk = weight.trim() === "" || (weightKg >= WEIGHT_RANGE.min && weightKg <= WEIGHT_RANGE.max);
 
   const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)));
   const lastYear = now.getFullYear() - MIN_AGE;
   const years = Array.from({ length: OLDEST - MIN_AGE + 1 }, (_, i) => lastYear - i);
 
-  function change<T>(set: (v: T) => void) {
-    return (v: T) => {
-      set(v);
-      setStatus(null);
-    };
-  }
-
-  function save(e: FormEvent) {
-    e.preventDefault();
-    if (!birthOk || !heightOk || !weightOk) {
-      setStatus("invalid");
-      return;
-    }
-    const next: Profile = {
+  /** Scrive negli store quello che c'è nel modulo; i campi non validi tengono il valore già salvato. */
+  function saveNow() {
+    const saved = profile.get();
+    const birthEmpty = month === "" && year === "";
+    const birthValid = birthComplete && birthOk;
+    profile.set({
+      displayName: cleanName(name),
       sex,
-      birthYear: birthComplete ? birthYear : undefined,
-      birthMonth: birthComplete ? birthMonth : undefined,
-      heightCm: height.trim() ? Math.round(heightValue * 10) / 10 : undefined,
+      birthYear: birthEmpty ? undefined : birthValid ? birthYear : saved.birthYear,
+      birthMonth: birthEmpty ? undefined : birthValid ? birthMonth : saved.birthMonth,
+      heightCm: height.trim() === "" ? undefined : heightOk ? Math.round(heightValue * 10) / 10 : saved.heightCm,
       activityLevel: activity || undefined,
       // Sotto i 18 anni "dimagrire" non si salva.
       goal: minor && goal === "lose" ? "maintain" : goal,
-    };
-    profile.set(next);
-    if (weight.trim()) {
-      const kg = Math.round(weightValue * 10) / 10;
-      if (kg !== initialWeight) bodyWeights.set((prev) => upsertWeight(prev, { day: localDateKey(), kg }));
+      weightUnit: unit,
+    });
+    // Peso: una nuova misura solo se è valido e diverso dall'ultimo salvato (anche dopo il cambio di unità).
+    const last = latestWeight(bodyWeights.get())?.kg ?? null;
+    if (weight.trim() && weightOk && (last === null || showWeight(last, unit) !== weight.trim())) {
+      bodyWeights.set((prev) => upsertWeight(prev, { day: localDateKey(), kg: weightKg }));
     }
-    setStatus("saved");
+    setSavedOnce(true);
   }
 
-  const savedProfile = profile.use();
-  const savedWeight = latestWeight(bodyWeights.use())?.kg ?? null;
-  const targets = dailyTargets(savedProfile, savedWeight, now);
+  // saveNow vede sempre i valori dell'ultimo render (serve al timer e all'uscita dalla pagina).
+  const saveRef = useRef(saveNow);
+  useLayoutEffect(() => {
+    saveRef.current = saveNow;
+  });
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    if (!dirty.current) return;
+    const timer = setTimeout(() => {
+      dirty.current = false;
+      saveRef.current();
+    }, AUTOSAVE_DELAY);
+    return () => clearTimeout(timer);
+  }, [name, sex, month, year, height, weight, unit, activity, goal]);
+
+  // Uscendo dalla pagina, chiudendo l'app o passando a un'altra app prima che
+  // scatti il timer, si salva subito.
+  useEffect(() => {
+    const flush = () => {
+      if (!dirty.current) return;
+      dirty.current = false;
+      saveRef.current();
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+
+  function change<T>(set: (v: T) => void) {
+    return (v: T) => {
+      dirty.current = true;
+      set(v);
+    };
+  }
+
+  function chooseSex(next: Sex | undefined) {
+    // Da "femmina" ad altro con dati del ciclo presenti: prima si chiede cosa farne (mai cancellati da soli).
+    if (profile.get().sex === "female" && next !== "female" && hasCycleData(periods, logs, consent)) {
+      setAskSex({ value: next });
+      return;
+    }
+    change(setSex)(next);
+  }
+
+  function switchUnit(next: WeightUnit) {
+    if (next === unit) return;
+    // Il valore scritto si converte, così non si perde.
+    if (weight.trim() && Number.isFinite(weightKg)) setWeight(showWeight(weightKg, next));
+    change(setUnit)(next);
+  }
+
+  const targets = dailyTargets(profile.use(), latestWeight(bodyWeights.use())?.kg ?? null, now);
 
   return (
-    <form onSubmit={save} className="space-y-5">
+    <form
+      onSubmit={(e) => {
+        // Invio sulla tastiera: si salva subito.
+        e.preventDefault();
+        dirty.current = false;
+        saveNow();
+      }}
+      className="space-y-5"
+    >
+      <div>
+        <label htmlFor="display-name" className="label">
+          {t.name}
+        </label>
+        <input
+          id="display-name"
+          className="field"
+          maxLength={NAME_MAX}
+          autoComplete="given-name"
+          placeholder={t.namePlaceholder}
+          value={name}
+          aria-describedby="display-name-hint"
+          onChange={(e) => change(setName)(e.target.value)}
+        />
+        <p id="display-name-hint" className="mt-1.5 text-footnote text-muted">
+          {interpolate(t.nameHint, { max: NAME_MAX })}
+        </p>
+      </div>
+
       <ChipGroup label={t.sex}>
         {SEXES.map((s) => (
-          <Chip key={s} active={sex === s} onClick={() => change(setSex)(sex === s ? undefined : s)}>
+          <Chip key={s} active={sex === s} onClick={() => chooseSex(sex === s ? undefined : s)}>
             {t.sexes[s]}
           </Chip>
         ))}
       </ChipGroup>
       <p className="-mt-3 text-footnote text-muted">{t.sexHint}</p>
+      {askSex && (
+        <div className="card p-4" role="alertdialog" aria-labelledby="cycle-data-question">
+          <p id="cycle-data-question" className="text-subhead">
+            {t.cycleData.question}
+          </p>
+          <p className="mt-2 text-footnote text-muted">{t.cycleData.keepNote}</p>
+          <div className="mt-3 flex gap-3">
+            <button
+              type="button"
+              className="btn btn-ghost flex-1"
+              onClick={() => {
+                // Conservati ma in pausa (come cycle_tracking_enabled = false nel database).
+                cycleConsent.set((c) => (c ? { ...c, enabled: false } : c));
+                change(setSex)(askSex.value);
+                setAskSex(null);
+              }}
+            >
+              {t.cycleData.keep}
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger flex-1"
+              onClick={() => {
+                deleteCycleData();
+                change(setSex)(askSex.value);
+                setAskSex(null);
+              }}
+            >
+              {t.cycleData.delete}
+            </button>
+          </div>
+          <button type="button" className="btn btn-ghost mt-2 w-full" onClick={() => setAskSex(null)}>
+            {dict.common.cancel}
+          </button>
+        </div>
+      )}
 
       <fieldset>
         <legend className="label">{t.birth}</legend>
@@ -129,9 +266,9 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
             </label>
             <select id="birth-month" className="field" value={month} onChange={(e) => change(setMonth)(e.target.value)} aria-invalid={!birthOk || undefined}>
               <option value="">{t.month}</option>
-              {months.map((name, i) => (
-                <option key={name} value={i + 1}>
-                  {name}
+              {months.map((label, i) => (
+                <option key={label} value={i + 1}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -170,7 +307,7 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
         </div>
         <div>
           <label htmlFor="weight" className="label">
-            {t.weight}
+            {interpolate(t.weight, { unit })}
           </label>
           <input
             id="weight"
@@ -185,10 +322,26 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
         </div>
       </div>
       {!heightOk && <Notice tone="error">{t.invalidHeight}</Notice>}
-      {!weightOk && <Notice tone="error">{t.invalidWeight}</Notice>}
+      {!weightOk && (
+        <Notice tone="error">
+          {interpolate(t.invalidWeight, {
+            min: formatNumber(locale, Math.ceil(fromKg(WEIGHT_RANGE.min, unit))),
+            max: formatNumber(locale, Math.floor(fromKg(WEIGHT_RANGE.max, unit))),
+            unit,
+          })}
+        </Notice>
+      )}
       <p id="weight-hint" className="-mt-3 text-footnote text-muted">
         {t.weightHint}
       </p>
+
+      <ChipGroup label={t.weightUnit}>
+        {WEIGHT_UNITS.map((u) => (
+          <Chip key={u} active={unit === u} onClick={() => switchUnit(u)}>
+            {u}
+          </Chip>
+        ))}
+      </ChipGroup>
 
       <div>
         <label htmlFor="activity" className="label">
@@ -215,19 +368,25 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
         {minor && <p className="mt-1.5 text-footnote text-muted">{t.goalMinor}</p>}
       </div>
 
-      <button type="submit" className="btn btn-primary w-full">
-        {t.save}
-      </button>
-      {status === "saved" && (
-        <Notice tone="success">
-          {t.saved}
-          {targets.kcal !== null && targets.protein !== null && (
-            <span className="mt-1 block text-ink-2">
-              {interpolate(t.estimate, { kcal: formatNumber(locale, targets.kcal), protein: formatNumber(locale, targets.protein) })}
-            </span>
+      <div className="card px-4 py-3" role="status" aria-live="polite">
+        <p className="text-footnote text-muted">
+          {savedOnce ? (
+            <>
+              <span className="text-success" aria-hidden="true">
+                ✓{" "}
+              </span>
+              {t.saved}
+            </>
+          ) : (
+            t.autosave
           )}
-        </Notice>
-      )}
+        </p>
+        {targets.kcal !== null && targets.protein !== null && (
+          <p className="mt-1 text-subhead text-ink-2">
+            {interpolate(t.estimate, { kcal: formatNumber(locale, targets.kcal), protein: formatNumber(locale, targets.protein) })}
+          </p>
+        )}
+      </div>
     </form>
   );
 }

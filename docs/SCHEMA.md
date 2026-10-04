@@ -1,8 +1,16 @@
 # Schema del database
 
-> **Per ora non è in uso:** l'app salva i dati sul dispositivo (vedi README, "Stato attuale").
-> Questo è lo schema per quando arriveranno account e Supabase (DA_FARE.md, sezione 1).
-> Da aggiungere allora: `brain_results` per il modulo Mente (stessi campi di `brainResultSchema` in `src/lib/brain/history.ts`).
+> **Per ora non è in uso:** l'app salva i dati sul dispositivo (IndexedDB, vedi README, "Stato attuale").
+>
+> **Schema v2 approvato** (fase A2): `supabase/proposta/schema_v2.sql`. Dove questo documento e la v2 non coincidono, vale la v2:
+> - regole di sincronizzazione su ogni tabella privata: id generati sul telefono, `created_at`, `updated_at` (vince l'ultima modifica), `deleted_at` (cancellazione morbida), `server_updated_at` (scritto solo dal server);
+> - righe "una al giorno" con chiave (utente, giorno): `body_weights`, `journal_entries`, `cycle_day_logs`;
+> - tabelle nuove: `brain_results` (Mente), `write_counters` (limiti giornalieri);
+> - `journal_entries` è anche il check-in giornaliero (umore, energia, fame, sonno) ed è pronta per la cifratura del solo testo (`content_encryption`);
+> - `profiles`: `weight_unit`, `cycle_tracking_enabled`, `cycle_wiped_at`; data di nascita correggibile;
+> - Ciclo accessibile solo con `can_use_cycle()` (donna, maggiorenne, sezione attiva, consenso sulla versione corrente); rapporti, protezione e pillola non sono nel database.
+>
+> Questa pagina verrà riscritta quando la v2 diventerà migrazioni.
 
 Postgres su Supabase. Le migrazioni stanno in `supabase/migrations/` e si eseguono in ordine di nome.
 Stato: ✅ creata · ⏳ arriverà con il modulo indicato.

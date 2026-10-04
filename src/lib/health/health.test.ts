@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween } from "@/lib/dates";
-import { effectiveGoal, isBirthAllowed, latestWeight, upsertWeight } from "@/lib/profile/profile";
+import { cleanName, effectiveGoal, isBirthAllowed, latestWeight, profileSchema, upsertWeight } from "@/lib/profile/profile";
 import { bmrMifflin, dailyTargets } from "./energy";
 import { type FoodEntry, kcalConsistent, mealForHour, recentFoods, totals } from "./food";
 import { type Workout, weekStart, weekSummary, workoutKcal } from "./workouts";
@@ -138,5 +138,20 @@ describe("date", () => {
     expect(daysBetween("2026-10-20", "2026-10-30")).toBe(10);
     expect(daysBetween("2026-03-28", "2026-03-30")).toBe(2);
     expect(daysBetween("2026-10-04", "2026-10-01")).toBe(-3);
+  });
+});
+
+describe("nome nel saluto", () => {
+  it("toglie gli spazi in più e taglia a 16 caratteri", () => {
+    expect(cleanName("  Anna   Maria ")).toBe("Anna Maria");
+    expect(cleanName("Bartolomeo Massimiliano")).toBe("Bartolomeo Massi");
+    expect(cleanName("   ")).toBeUndefined();
+  });
+
+  it("le emoji non vengono spezzate e il profilo resta valido", () => {
+    const name = cleanName("Giulia 🌙🌙🌙🌙🌙")!;
+    expect(name).toBe("Giulia 🌙🌙🌙🌙");
+    expect(name.length).toBeLessThanOrEqual(16);
+    expect(profileSchema.safeParse({ displayName: name }).success).toBe(true);
   });
 });

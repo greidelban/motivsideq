@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconDrop, IconFood, IconWorkout } from "@/components/icons";
 import { useI18n } from "@/i18n/client";
+import { canUseCycle, isCycleVisible } from "@/lib/health/cycle-access";
+import { cycleConsent } from "@/lib/health/store";
 import { profile } from "@/lib/profile/store";
 
 const SECTIONS = [
@@ -12,12 +14,12 @@ const SECTIONS = [
   { href: "/health/cycle", key: "cycle", Icon: IconDrop },
 ] as const;
 
-// Sotto-menu di Salute. Il Ciclo non compare a chi ha indicato sesso maschile.
+// Sotto-menu di Salute. Il Ciclo compare solo se canUseCycle lo permette (sesso "donna").
 export function HealthNav() {
   const pathname = usePathname();
   const { dict } = useI18n();
-  const { sex } = profile.use();
-  const sections = SECTIONS.filter((s) => s.key !== "cycle" || sex !== "male");
+  const cycleVisible = isCycleVisible(canUseCycle(profile.use(), cycleConsent.use()));
+  const sections = SECTIONS.filter((s) => s.key !== "cycle" || cycleVisible);
 
   return (
     <nav aria-label={dict.health.sectionsLabel} className="glass mb-4 flex gap-1 rounded-full p-1">

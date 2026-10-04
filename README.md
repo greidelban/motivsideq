@@ -1,13 +1,17 @@
-# Ritmo
+# GetControl
 
 Web app mobile-first (PWA), in inglese (lingua base) e italiano: allenamento mentale del mattino, diario personale, registro allenamenti, tracciamento alimentare e, opzionale, ciclo mestruale.
 Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest. Supabase è previsto più avanti.
 
-> "Ritmo" è un nome provvisorio: si cambia in `src/lib/app.ts`.
+> Il nome si cambia in `src/lib/app.ts`. Gli identificativi interni (chiavi di salvataggio, database locale, cookie) restano `ritmo`: cambiarli farebbe perdere i dati.
 
 ## Stato attuale
 
-- **Nessun account.** I dati restano sul dispositivo, nel `localStorage` del browser, tramite gli store di `src/lib/storage/local-store.ts`.
+- **Nessun account.** I dati restano sul dispositivo:
+  - i dati dell'utente (profilo, peso, Mente, allenamenti, pasti, ciclo) stanno in **IndexedDB**, già nel formato pronto per il cloud: ogni elemento ha id, date di creazione e modifica, cancellazione "morbida" e il segno "da inviare" (`src/lib/storage/local-db.ts`, elenco in `definitions.ts`);
+  - le impostazioni del dispositivo (sfondo, animazioni, durata del calcolo) restano in `localStorage` (`local-store.ts`): servono subito e non vanno nel cloud;
+  - al primo avvio i vecchi dati di `localStorage` passano a IndexedDB; si cancellano solo dopo aver verificato la copia (`migration.ts`); se IndexedDB non si apre, l'app continua come prima con `localStorage`.
+- **Copia di sicurezza:** Impostazioni → "Esporta i miei dati" (file JSON) e "Importa da un file" (unisce senza perdere nulla).
 - Il login con Supabase era pronto ed è in `archivio/login/`: tornerà con il backend. Le attività rimandate sono in **[DA_FARE.md](DA_FARE.md)**.
 - **Mente** è completo:
   - routine "Risveglio" (4 esercizi, circa 4 minuti);
@@ -30,7 +34,8 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
   - Funziona anche con lo sfondo Classico: durante l'esercizio la luce si accende comunque.
 - Nel calcolo rapido si vedono il tempo di ogni risposta, la media, la risposta più veloce e più lenta, e il tempo medio per operazione.
 - **Lingue:** inglese come base, italiano tradotto. Si riconosce la lingua del browser e si cambia in Impostazioni (cookie `ritmo-locale`).
-- Salute (Allenamento, Cibo, Ciclo) ha una prima versione locale; il Diario è il prossimo modulo.
+- **Salute** (Allenamento, Cibo, Ciclo) ha una prima versione locale. Il Ciclo compare solo a chi indica sesso femmina (`canUseCycle` in `src/lib/health/cycle-access.ts`); il peso si può vedere in kg o lb, ma si salva in kg.
+- **Database (in preparazione):** lo schema v2 per Supabase è in `supabase/proposta/schema_v2.sql`, provato con `node supabase/proposta/schema_v2.check.mjs`.
 
 ## Aggiungere una lingua
 
@@ -68,10 +73,11 @@ src/lib/                logica pura, con test *.test.ts accanto
 src/lib/brain/          giochi mentali: generatori, punteggi, storico, routine
 src/lib/light/          luce viva: inviluppo (puro, testato) e bus condiviso (intensità, impulsi, respiro)
 src/components/light/   renderer WebGL, shader, esercizio "Accendi"
-src/lib/storage/        salvataggio locale validato con zod
+src/lib/storage/        archivio locale (IndexedDB + localStorage), migrazione, export/import
 src/components/         componenti UI (stile "Liquid Atlas": vetro, bordi luminosi, card piatte)
 src/proxy.ts            Content-Security-Policy con nonce per richiesta
 supabase/migrations/    schema SQL per il futuro backend (non ancora usato)
+supabase/proposta/      schema v2 approvato, da trasformare in migrazioni (fase A2)
 docs/SCHEMA.md          documentazione del database futuro
 archivio/login/         codice del login, messo da parte
 ```

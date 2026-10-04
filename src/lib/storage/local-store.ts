@@ -13,6 +13,8 @@ const CHANGE_EVENT = "ritmo:store-change";
 
 export type LocalStore<T> = {
   key: string;
+  /** Schema del valore intero (usato anche da export e import). */
+  schema: z.ZodType<T>;
   get(): T;
   set(next: T | ((prev: T) => T)): void;
   clear(): void;
@@ -81,6 +83,7 @@ export function defineStore<T>(key: string, schema: z.ZodType<T>, fallback: T): 
 
   return {
     key,
+    schema,
     get,
     set,
     clear: () => write(null),

@@ -1,107 +1,51 @@
-# Da fare: attività secondarie
+# Da fare
 
-Cose rimandate per concentrarsi sull'app. Nessuna blocca lo sviluppo delle funzioni: si riprendono quando l'app è pronta per avere account e andare online.
+Fase 2 (piano approvato): A1 dati pronti al cloud ✅ → E ciclo solo per le donne ✅ → **A2 Supabase** → check-in giornaliero → B ciclo → D allenamento → C alimentazione.
 
-## 1. Account e backend (Supabase)
+## 1. Account e backend (Supabase): fase A2
 Il login era già pronto ed è stato messo da parte in `archivio/login/` (escluso da build, typecheck e lint).
 - [ ] Creare il progetto Supabase gratuito (regione **Central EU (Frankfurt)**).
 - [ ] Copiare URL e chiavi in `.env.local` (modello: `archivio/login/.env.example`). La chiave `service_role` va solo nel file, mai in chat né in variabili `NEXT_PUBLIC_`.
-- [ ] Eseguire le migrazioni di `supabase/migrations/` nello SQL Editor, in ordine.
+- [ ] Trasformare `supabase/proposta/schema_v2.sql` in migrazioni (sezione 1b) ed eseguirle nello SQL Editor, in ordine.
 - [ ] *Authentication → URL Configuration*: Site URL `http://localhost:3000` e Redirect URL `http://localhost:3000/auth/confirm`.
 - [ ] *Authentication → Emails*: template con `token_hash`.
-  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/oggi`
+  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/today`
   - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
 - [ ] Lunghezza minima della password: 8. "Confirm email" attivo.
+- [ ] Accesso con Google (gratuito). Accesso con Apple: codice pronto, da attivare solo quando l'app andrà sugli store (serve l'Apple Developer Program, 99 $ l'anno).
 - [ ] SMTP proprio (Resend o Brevo, piano gratuito): quello integrato manda email solo ai membri del progetto.
 - [ ] Rimettere in `src/` il codice di `archivio/login/` e reinstallare `@supabase/supabase-js`, `@supabase/ssr` e `server-only`. Poi:
   - riunire il proxy di sola CSP con quello completo (`archivio/login/src/proxy.ts`);
-  - ripristinare `requireUser()` nel layout `(app)` e le pagine `(auth)`.
-- [ ] **Migrare i dati locali**: al primo accesso, importare nel database quello che è nel `localStorage` (store definiti con `defineStore`, chiavi `ritmo:v1:*`).
-- [ ] Aggiungere le tabelle dei moduli nuovi (es. `brain_results` per Mente) a migrazioni e `docs/SCHEMA.md`.
+  - il login resta facoltativo: l'app funziona anche senza account.
+- [ ] **Sincronizzazione** (i record locali sono già pronti: `localDb.dirty(nome)`):
+  - prima su tre tabelle semplici (`body_weights`, `brain_results`, `workout_sessions`), poi sulle altre;
+  - invio in blocchi con "upsert", poi download di ciò che è cambiato (`server_updated_at`, con un minuto di sovrapposizione);
+  - indicatore di stato discreto (sincronizzato / in coda / offline);
+  - limite giornaliero raggiunto (codice `RL001`): i dati restano in coda, messaggio comprensibile, nuovo tentativo il giorno dopo;
+  - telefono offline da più di 180 giorni: **prima** invia le modifiche locali, **poi** riscarica tutto; messaggio chiaro all'utente; test dedicato;
+  - consenso al ciclo e cancellazione totale (`cycle-wiped-at`) si inviano con le funzioni del database, non come righe.
+- [ ] **Primo accesso:** caricare i dati già sul telefono senza duplicarli né perderli (gli id sono già UUID), con test.
+- [ ] Pulizia mensile delle righe cancellate da più di 180 giorni (pg_cron), anche sul telefono dopo l'invio.
+- [ ] Test dello schema in Vitest: `supabase/proposta/schema_v2.check.mjs` con PGlite come dipendenza di sviluppo.
+- [ ] Blocco app facoltativo (PIN o biometria con WebAuthn) per diario e ciclo.
 - [ ] Ricordarsi che il piano gratuito mette in pausa il progetto dopo 7 giorni senza attività.
-- [ ] Creare la migrazione di Salute con l'SQL della sezione 1b.
 
-## 1b. SQL per Salute (profilo, allenamenti, cibo, ciclo)
-Oggi questi dati stanno nel `localStorage` (store `profile`, `body-weights`, `workouts`, `food-entries`, `cycle-*`).
-- **Profilo:** altezza, data di nascita (mese e anno), sesso, attività e obiettivo ci sono già in `profiles`, il peso in `body_weights` (migrazione core). Da store a colonne: `heightCm` → `height_cm`, `birthYear`/`birthMonth` → `birth_year`/`birth_month`, `activityLevel` → `activity_level`, `kg` → `weight_kg`, `day` → `measured_on`.
-- **Da aggiungere** in una nuova migrazione (es. `supabase/migrations/2026100xxxxxxx_health.sql`), poi aggiornare `docs/SCHEMA.md`:
+## 1b. Schema v2 (sincronizzazione, ciclo solo per le donne, Salute)
+Approvato. È in `supabase/proposta/schema_v2.sql` (fuori da `migrations/`: non si esegue). Provato su un Postgres in memoria con 31 controlli: `node supabase/proposta/schema_v2.check.mjs` (serve `@electric-sql/pglite`).
+- [x] Approvare la proposta.
+- [ ] Riscrivere `profiles` e `body_weights` nella migrazione core e dividere il resto in migrazioni nuove.
 
-```sql
--- Allenamenti: un tipo di attività per sessione (stessi id di WORKOUT_TYPES in src/lib/health/workouts.ts).
--- Le kcal non si salvano: si calcolano (MET × peso × ore).
-create table public.workout_sessions (
-  id            uuid primary key default gen_random_uuid(),
-  user_id       uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  performed_on  date not null default current_date,
-  activity_type text not null check (activity_type in (
-    'gym', 'calisthenics', 'crossfit', 'running', 'walking', 'cycling', 'swimming', 'hiit', 'rowing',
-    'hiking', 'yoga', 'pilates', 'stretching', 'martialArts', 'dance', 'teamSports', 'racket', 'climbing', 'other')),
-  duration_min  smallint not null check (duration_min between 1 and 600),
-  intensity     smallint not null check (intensity between 1 and 3),
-  notes         text check (char_length(notes) <= 200),
-  created_at    timestamptz not null default now()
-);
-create index workout_sessions_user_day on public.workout_sessions (user_id, performed_on desc);
-
--- Cibo: inserimento manuale (food_id resta per quando arriverà la tabella condivisa foods).
-create table public.food_logs (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  logged_on  date not null default current_date,
-  meal       text not null check (meal in ('breakfast', 'lunch', 'dinner', 'snack')),
-  food_id    uuid,
-  name       text not null check (char_length(name) between 1 and 80),
-  kcal       numeric(6, 1) not null check (kcal between 0 and 5000),
-  protein_g  numeric(5, 1) check (protein_g between 0 and 500),
-  carbs_g    numeric(5, 1) check (carbs_g between 0 and 500),
-  fat_g      numeric(5, 1) check (fat_g between 0 and 500),
-  created_at timestamptz not null default now()
-);
-create index food_logs_user_day on public.food_logs (user_id, logged_on);
-
--- Ciclo (art. 9 GDPR, solo maggiorenni con consenso).
-create table public.health_consents (
-  id             uuid primary key default gen_random_uuid(),
-  user_id        uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  scope          text not null check (scope = 'cycle'),
-  policy_version text not null,
-  granted_at     timestamptz not null default now(),
-  revoked_at     timestamptz
-);
-
-create table public.cycle_periods (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  start_date date not null,
-  end_date   date check (end_date >= start_date and end_date - start_date < 15),
-  unique (user_id, start_date)
-);
-
-create table public.cycle_day_logs (
-  id       uuid primary key default gen_random_uuid(),
-  user_id  uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  log_date date not null,
-  flow     text check (flow in ('spotting', 'light', 'medium', 'heavy')),
-  symptoms text[] not null default '{}' check (symptoms <@ array[
-    'cramps', 'headache', 'bloating', 'fatigue', 'moodSwings', 'acne',
-    'breastTenderness', 'cravings', 'backPain', 'nausea']::text[]),
-  unique (user_id, log_date)
-);
-
-create or replace function public.has_cycle_consent()
-returns boolean language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.health_consents
-                  where user_id = auth.uid() and scope = 'cycle' and revoked_at is null);
-$$;
-revoke execute on function public.has_cycle_consent() from public, anon;
-grant execute on function public.has_cycle_consent() to authenticated;
-
--- Privilegi e RLS: stesso schema di body_weights (revoke all, poi solo il necessario).
--- workout_sessions e food_logs: policy "user_id = (select auth.uid())" per select/insert/update/delete.
--- cycle_periods e cycle_day_logs: in più "and public.has_cycle_consent() and public.current_user_is_adult()".
--- health_consents: il client legge soltanto; scrivono grant_cycle_consent() e delete_cycle_data()
--- (SECURITY DEFINER, quest'ultima cancella periodi e log e imposta revoked_at).
-```
+Decisioni principali:
+- **ID e sincronizzazione:** UUID generati sul telefono; `created_at`, `updated_at` (ora del telefono, decide i conflitti: vince la modifica più recente), `deleted_at` (cancellazione morbida), `server_updated_at` (solo server, per scaricare le novità).
+- **Righe "una al giorno"** (peso, check-in/diario, registro del ciclo): chiave (utente, giorno) invece dell'id, così due telefoni offline non creano doppioni.
+- **Giorni** calcolati sul telefono nel fuso dell'utente: nessuna colonna giorno usa `current_date` del server (UTC).
+- **Unità** sempre metriche; `profiles.weight_unit` (kg/lb) è solo una preferenza dell'interfaccia.
+- **Ciclo:** accesso solo con sesso donna + maggiorenne + `cycle_tracking_enabled` + consenso attivo sulla versione corrente dell'informativa (`can_use_cycle()`). Cambiare sesso spegne la sezione senza cancellare i dati; `delete_cycle_data()` cancella tutto davvero e impedisce che righe vecchie tornino da un telefono offline.
+- **Data di nascita** correggibile: le regole per i minorenni si ricalcolano a ogni scrittura ("dimagrire" diventa "mantenere", niente obiettivo calorico).
+- **Rapporti, protezione e pillola** non sono nello schema: restano solo sul telefono.
+- **Sicurezza:** niente DELETE dal client; colonne protette (`plan`, consensi, stato del ciclo); limiti giornalieri di scrittura con un contatore che conta solo le righe davvero nuove (un invio ritentato non lo consuma due volte); errore `RL001` quando il limite è raggiunto.
+- **Diario:** pronto per la cifratura facoltativa del solo testo (`content_encryption`), non implementata.
+- **Export:** `export_my_data()` in JSON (il CSV si genera nell'app).
 
 ## 2. Privacy e aspetti legali
 - [ ] Compilare titolare e contatto in `src/app/privacy/page.tsx` (ora sono segnaposto `[...]`).
@@ -110,7 +54,8 @@ grant execute on function public.has_cycle_consent() to authenticated;
 - [ ] Verificare le regole per i minori di 14-17 anni (consenso digitale in Italia: 14 anni).
 
 ## 3. Account: funzioni da completare
-- [ ] Export dei dati (JSON unico o CSV per tabella). In modalità locale si può già fare dal `localStorage`.
+- [x] Export e import JSON in locale (Impostazioni → Copia di sicurezza).
+- [ ] Export anche in CSV e dal server (`export_my_data()`).
 - [ ] Cancellazione account (route server con `service_role`, tutto a cascata).
 - [ ] Rate limit sulla creazione di alimenti e voti (già previsto via trigger nello schema).
 - [ ] Test automatici delle regole RLS (un utente non deve vedere i dati di un altro).
@@ -119,7 +64,8 @@ grant execute on function public.has_cycle_consent() to authenticated;
 - [x] Git inizializzato e pubblicato su GitHub: https://github.com/greidelban/motivsideq (pubblico).
 - [ ] Scegliere l'hosting (es. Vercel, piano gratuito) e un dominio; HTTPS obbligatorio per la PWA.
 - [ ] Impostare le variabili d'ambiente in produzione e aggiungere l'URL di produzione ai Redirect URLs di Supabase.
-- [ ] Scegliere il nome definitivo dell'app (ora "Ritmo", in `src/lib/app.ts`) e rifare l'icona se serve (`npm run icons`).
+- [x] Nome dell'app: **GetControl** (`src/lib/app.ts`).
+- [ ] Rifare l'icona se serve (`npm run icons`) e scegliere il dominio.
 
 ## 5. PWA e qualità
 - [ ] Cache offline delle pagine e dei file statici nel service worker, così i giochi del mattino funzionano anche senza rete (oggi c'è solo la pagina "Sei offline").

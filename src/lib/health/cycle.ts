@@ -49,7 +49,15 @@ export const dayLogSchema = z.object({
 });
 export type DayLog = z.infer<typeof dayLogSchema>;
 
-export const consentSchema = z.object({ acceptedAt: z.string().max(40) }).nullable();
+// policyVersion manca nei consensi dati prima della versione dell'informativa:
+// valgono come da rinnovare. enabled = false: sezione in pausa (dati conservati).
+export const consentSchema = z
+  .object({
+    acceptedAt: z.string().max(40),
+    policyVersion: z.string().max(20).optional(),
+    enabled: z.boolean().default(true),
+  })
+  .nullable();
 export type CycleConsent = z.infer<typeof consentSchema>;
 
 export function sortPeriods(periods: readonly Period[]): Period[] {

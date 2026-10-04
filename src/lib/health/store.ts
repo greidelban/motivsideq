@@ -1,24 +1,19 @@
 "use client";
 
-import { z } from "zod";
 import { localDateKey } from "@/lib/dates";
-import { defineStore } from "@/lib/storage/local-store";
-import { type CycleConsent, type DayLog, type Period, consentSchema, dayLogSchema, periodSchema } from "./cycle";
-import { type FoodEntry, MAX_STORED_FOOD, foodEntrySchema } from "./food";
-import { MAX_STORED_WORKOUTS, type Workout, workoutSchema } from "./workouts";
+import { localDb } from "@/lib/storage/db";
+import { DEFS } from "@/lib/storage/definitions";
+import { type FoodEntry, MAX_STORED_FOOD } from "./food";
+import { MAX_STORED_WORKOUTS, type Workout } from "./workouts";
 
-const NO_WORKOUTS: Workout[] = [];
-const NO_FOOD: FoodEntry[] = [];
-const NO_PERIODS: Period[] = [];
-const NO_LOGS: DayLog[] = [];
-
-export const workouts = defineStore("workouts", z.array(workoutSchema), NO_WORKOUTS);
-export const foodEntries = defineStore("food-entries", z.array(foodEntrySchema), NO_FOOD);
+export const workouts = localDb.store(DEFS.workouts);
+export const foodEntries = localDb.store(DEFS.foodEntries);
 
 // Ciclo: dati sanitari, letti e scritti solo dopo il consenso (e solo da maggiorenni).
-export const cycleConsent = defineStore<CycleConsent>("cycle-consent", consentSchema, null);
-export const cyclePeriods = defineStore("cycle-periods", z.array(periodSchema).max(1000), NO_PERIODS);
-export const cycleDayLogs = defineStore("cycle-day-logs", z.array(dayLogSchema).max(5000), NO_LOGS);
+export const cycleConsent = localDb.store(DEFS.cycleConsent);
+export const cyclePeriods = localDb.store(DEFS.cyclePeriods);
+export const cycleDayLogs = localDb.store(DEFS.cycleDayLogs);
+const cycleWipedAt = localDb.store(DEFS.cycleWipedAt);
 
 /** Crea id, ora e giorno locale per un nuovo elemento. */
 function stamp() {
@@ -40,9 +35,14 @@ export function addFood(input: Omit<FoodEntry, "id" | "at" | "day">, day?: strin
   return entry;
 }
 
-/** Revoca il consenso e cancella tutti i dati del ciclo. */
+/**
+ * Revoca il consenso e cancella davvero tutti i dati del ciclo da questo
+ * dispositivo (nessun segnale di cancellazione resta). L'ora della
+ * cancellazione si ricorda per chiedere la stessa cosa al server, con l'account.
+ */
 export function deleteCycleData() {
-  cyclePeriods.clear();
-  cycleDayLogs.clear();
-  cycleConsent.clear();
+  cyclePeriods.purge();
+  cycleDayLogs.purge();
+  cycleConsent.purge();
+  cycleWipedAt.set(new Date().toISOString());
 }

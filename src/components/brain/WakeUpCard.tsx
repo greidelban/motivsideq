@@ -7,14 +7,14 @@ import { routineDoneOn, routineStreak } from "@/lib/brain/history";
 import { ROUTINE_STEPS } from "@/lib/brain/routine";
 import { brainResults } from "@/lib/brain/store";
 import { localDateKey } from "@/lib/dates";
-import { useHydrated } from "@/lib/storage/local-store";
+import { useLocalData } from "@/lib/storage/db";
 
 // Scheda "Risveglio": usata in Mente e, finché non è fatta, anche in Oggi.
 export function WakeUpCard({ hideWhenDone = false }: { hideWhenDone?: boolean }) {
   const { locale, dict } = useI18n();
   const t = dict.mind.wakeUp;
   const results = brainResults.use();
-  const hydrated = useHydrated();
+  const hydrated = useLocalData();
   const today = localDateKey();
   const doneToday = hydrated && routineDoneOn(results, today);
   const days = hydrated ? routineStreak(results, today) : 0;
