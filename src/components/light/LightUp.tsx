@@ -109,9 +109,8 @@ export function LightUp({
       <div className="flex flex-1 flex-col justify-end gap-4 pb-6">
         <p
           key={inhaling ? "in" : "out"}
-          className="materialize text-center text-title1 font-semibold text-ink"
+          className="materialize on-backdrop text-center text-title1 font-semibold text-ink"
           aria-live="polite"
-          style={{ textShadow: "0 1px 12px rgb(2 4 12 / 0.8)" }}
         >
           {inhaling ? t.inhale : t.exhale}
         </p>

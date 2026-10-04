@@ -29,7 +29,7 @@ export default async function MindPage() {
           </span>
         </Link>
         <section>
-          <h2 className="eyebrow mb-3">{dict.mind.singleExercises}</h2>
+          <h2 className="eyebrow on-backdrop mb-3">{dict.mind.singleExercises}</h2>
           <GameList />
         </section>
       </div>

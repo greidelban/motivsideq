@@ -27,6 +27,12 @@ uniform float uPulse;
 uniform float uBreath;
 uniform vec3 uPointer; // xy posizione, z quantità
 uniform float uMotion;  // livello di animazione scelto dall'utente, 0..1 (la velocità è già nel tempo)
+// Colori scelti dall'utente (src/lib/light/palettes.ts): 4 ruoli fissi.
+uniform vec3 uPal[4];
+#define PAL_LIGHT uPal[0]
+#define PAL_MID uPal[1]
+#define PAL_DEEP uPal[2]
+#define PAL_ACCENT uPal[3]
 
 // hash12 di Dave Hoskins: uniforme e stabile anche con poca precisione.
 float hash(vec2 p) {
@@ -101,15 +107,11 @@ void main() {
   float dens = (0.7 * body + 0.6 * strand) * mask;
   float edge = smoothstep(0.15, 0.37, length(r - q));
 
-  // Palette calda: pesca, rosa, magenta; riflessi ciano solo sui bordi dei vortici.
-  vec3 peach = vec3(1.00, 0.74, 0.58);
-  vec3 rose = vec3(1.00, 0.55, 0.68);
-  vec3 magenta = vec3(0.92, 0.38, 0.85);
-  vec3 cyan = vec3(0.45, 0.90, 0.95);
-  vec3 tint = mix(peach, rose, smoothstep(0.30, 0.48, q.y));
-  tint = mix(tint, magenta, smoothstep(0.48, 0.64, q.y));
-  tint = mix(tint, cyan, smoothstep(0.58, 0.68, r.x) * edge * 0.6);
-  vec3 smoke = mix(vec3(0.96, 0.84, 0.80), tint, clamp(0.35 + 0.5 * edge + 0.15 * e, 0.0, 1.0));
+  // Palette (originale: pesca, rosa, magenta; riflessi ciano solo sui bordi dei vortici).
+  vec3 tint = mix(PAL_LIGHT, PAL_MID, smoothstep(0.30, 0.48, q.y));
+  tint = mix(tint, PAL_DEEP, smoothstep(0.48, 0.64, q.y));
+  tint = mix(tint, PAL_ACCENT, smoothstep(0.58, 0.68, r.x) * edge * 0.6);
+  vec3 smoke = mix(mix(vec3(1.0), PAL_LIGHT, 0.6), tint, clamp(0.45 + 0.45 * edge + 0.15 * e, 0.0, 1.0));
 
   float rad = length(uv);
   float glow = exp(-rad * mix(2.4, 1.0, e));
@@ -121,10 +123,10 @@ void main() {
   float r2 = noise(dir * 9.0 + vec2(-1.0, -t * 0.13));
   float rays = smoothstep(0.35, 0.9, r1) * (0.5 + 0.5 * r2);
   rays *= exp(-rad * mix(4.0, 1.6, e)) * (0.12 + 0.7 * lit + 0.6 * uPulse);
-  col += vec3(1.0, 0.72, 0.80) * rays * (0.6 + 0.4 * mask);
+  col += mix(PAL_LIGHT, PAL_MID, 0.5) * rays * (0.6 + 0.4 * mask);
 
   // Nucleo: un punto caldo stretto più un alone morbido che respira.
-  vec3 warm = vec3(1.0, 0.86, 0.84);
+  vec3 warm = mix(vec3(1.0), PAL_LIGHT, 0.45);
   float r2c = rad * rad;
   float hot = exp(-r2c * mix(900.0, 110.0, clamp(lit, 0.0, 1.0)));
   float halo = exp(-r2c * mix(70.0, 12.0, clamp(e * 0.8 + uPulse * 0.4, 0.0, 1.0)));
@@ -137,11 +139,11 @@ void main() {
   float thin = mix(430.0, 150.0, clamp(lit, 0.0, 1.0));
   float h = exp(-abs(uv.y) * thin) * exp(-abs(uv.x) * mix(2.6, 0.7, e));
   float v = exp(-abs(uv.x) * thin * 1.4) * exp(-abs(uv.y) * mix(2.2, 0.6, e));
-  vec3 hcol = mix(vec3(1.0, 0.6, 0.82), vec3(0.6, 0.9, 1.0), smoothstep(-0.6, 0.6, uv.x));
+  vec3 hcol = mix(mix(PAL_MID, vec3(1.0), 0.3), mix(PAL_ACCENT, vec3(1.0), 0.3), smoothstep(-0.6, 0.6, uv.x));
   hcol = mix(hcol, vec3(1.0), exp(-abs(uv.x) * 4.0));
   col += (hcol * h + warm * v * 0.8) * (0.20 + 0.9 * lit + 0.6 * uPulse) * flicker;
 
-  gl_FragColor = finish(col, vec3(0.060, 0.034, 0.060), rad);
+  gl_FragColor = finish(col, PAL_DEEP * 0.065, rad);
 }
 `;
 
@@ -174,7 +176,8 @@ vec3 stars(vec2 uv, float t) {
     float point = exp(-d * d * 1.4);
     float glow = exp(-d * 0.55) * mag * 0.35;
     float twinkle = 1.0 - (0.1 + 0.4 * uMotion) * (0.5 + 0.5 * sin(t * (0.9 + h * 2.6) + h * 60.0));
-    acc += starColor(hash(id + 3.3)) * (point + glow) * layer * (0.12 + 2.2 * mag) * twinkle;
+    vec3 sc = mix(starColor(hash(id + 3.3)), PAL_MID, 0.15);
+    acc += sc * (point + glow) * layer * (0.12 + 2.2 * mag) * twinkle;
   }
   return acc;
 }
@@ -195,7 +198,7 @@ vec3 meteor(vec2 uv, float t) {
   float across = abs(dot(v, vec2(-dir.y, dir.x))) * uRes.y; // in pixel
   float tail = step(0.0, behind) * (1.0 - smoothstep(0.0, 0.2, behind)) * exp(-across * 0.9);
   float head = exp(-length(v) * uRes.y * 0.5);
-  return vec3(0.88, 0.94, 1.0) * (tail + head) * sin(3.14159 * p);
+  return mix(vec3(1.0), PAL_MID, 0.3) * (tail + head) * sin(3.14159 * p);
 }
 
 void main() {
@@ -229,30 +232,28 @@ void main() {
   float dust = smoothstep(0.78, 0.96, ridge) * smoothstep(0.2, 0.9, cos(phase + 0.8) * 0.5 + 0.5);
   dust *= smoothstep(0.05, 0.22, r) * (1.0 - smoothstep(0.35, 0.9, r));
 
-  // Colori sobri: stelle vecchie calde al centro, giovani bianco-azzurre nei bracci.
-  vec3 old = vec3(1.0, 0.87, 0.70);
-  vec3 young = vec3(0.72, 0.80, 1.0);
-  vec3 col = mix(old, young, smoothstep(0.06, 0.38, r)) * (1.1 * arms + 0.25) * disk;
+  // Stelle vecchie al centro (originale: calde), giovani nei bracci (originale: bianco-azzurre).
+  vec3 col = mix(PAL_LIGHT, PAL_MID, smoothstep(0.06, 0.38, r)) * (1.1 * arms + 0.25) * disk;
   col *= (0.35 + 0.9 * lit) * (0.88 + 0.24 * b);
   // Regioni di formazione stellare: puntini rosa, piccoli e rari, solo nei bracci.
   vec2 hp = rg * 70.0;
   vec2 hid = floor(hp);
   float hd = length(fract(hp) - 0.5 - (vec2(hash(hid + 2.1), hash(hid + 6.4)) - 0.5) * 0.6) * uRes.y / 70.0;
   float hii = step(0.94, hash(hid + 4.0)) * exp(-hd * hd * 0.8) * armBase * disk;
-  col += vec3(1.0, 0.45, 0.62) * hii * (0.4 + 0.8 * lit);
+  col += PAL_DEEP * hii * (0.4 + 0.8 * lit);
   col *= 1.0 - 0.8 * dust;
 
   // Nucleo piccolo e intenso dentro un rigonfiamento morbido.
   float nucleus = exp(-r * r * mix(320.0, 110.0, clamp(e * 0.8 + uPulse * 0.4, 0.0, 1.0)));
   float bulge = exp(-r * 11.0);
-  col += vec3(1.0, 0.90, 0.76) * (nucleus * (0.6 + 1.5 * lit + 0.35 * b + uPulse) + bulge * 0.3 * (0.5 + lit));
+  col += mix(vec3(1.0), PAL_LIGHT, 0.75) * (nucleus * (0.6 + 1.5 * lit + 0.35 * b + uPulse) + bulge * 0.3 * (0.5 + lit));
 
   // Cielo: stelle, nebulose colorate che si muovono piano e qualche stella cadente.
   col += stars(uv, t) * (0.9 + 0.25 * b);
   float nebA = fbm(uv * 1.5 + vec2(t * 0.012, 5.0));
   float nebB = fbm(uv * 2.1 + vec2(-t * 0.009, 9.0));
-  col += vec3(0.55, 0.16, 0.34) * smoothstep(0.55, 0.78, nebA) * 0.30;
-  col += vec3(0.16, 0.30, 0.62) * smoothstep(0.58, 0.80, nebB) * 0.28;
+  col += PAL_DEEP * 0.55 * smoothstep(0.55, 0.78, nebA) * 0.30;
+  col += PAL_ACCENT * 0.65 * smoothstep(0.58, 0.80, nebB) * 0.28;
   col += meteor(uv, t) * (0.6 + 0.4 * uMotion);
 
   gl_FragColor = finish(col, vec3(0.010, 0.011, 0.020), length(uv));
@@ -276,7 +277,8 @@ void main() {
 
   // Forma del cristallo: un grumo irregolare che cambia piano.
   vec2 cw = rot(s * 0.6) * w;
-  float shape = fbm(cw * 2.2 + vec2(s, -s));
+  // (spinta verso il centro: il cristallo resta sempre dove c'è la luce, non vaga negli angoli)
+  float shape = fbm(cw * 2.2 + vec2(s, -s)) + 0.2 * exp(-rad * rad * 10.0);
   float body = smoothstep(0.40, 0.70, shape) * exp(-rad * mix(3.4, 1.8, e));
 
   // Aghi di ghiaccio: fibre fitte (rumore sulla direzione), corte e spezzate
@@ -288,28 +290,27 @@ void main() {
   // Brina: grana fine e finissima dentro il cristallo.
   float frost = smoothstep(0.52, 0.76, fbm(cw * 14.0 + 3.0)) * (0.6 + 0.8 * fbm(cw * 34.0 + 8.0)) * body;
 
-  vec3 ice = vec3(0.80, 0.88, 1.0);
-  vec3 cyan = vec3(0.55, 0.92, 1.0);
-  vec3 col = mix(ice, cyan, smoothstep(0.45, 0.65, shape)) * (0.75 * body + 0.95 * needles + 0.8 * frost);
+  vec3 col = mix(PAL_LIGHT, PAL_MID, smoothstep(0.45, 0.65, shape)) * (0.75 * body + 0.95 * needles + 0.8 * frost);
   col *= (0.35 + 0.9 * lit) * (0.85 + 0.3 * b);
 
   // Fasci verticali come luce che filtra da fessure: larghi e morbidi + sottili e netti.
   // (i fasci larghi svaniscono presto ai lati: lontano dal centro diventerebbero bande piatte)
-  float wide = pow(noise(vec2(uv.x * 12.0 + 2.0, s * 1.5)), 3.0) * 1.6 * exp(-abs(uv.x) * 3.4);
-  float thinShaft = pow(noise(vec2(uv.x * 48.0, s * 2.0 + 9.0)), 6.0) * 2.6 * exp(-abs(uv.x) * 2.0);
-  float shafts = (wide + thinShaft) * exp(-abs(uv.y) * 0.45);
+  // (fasci sottili radi: troppi insieme sembrano un codice a barre)
+  float wide = pow(noise(vec2(uv.x * 12.0 + 2.0, s * 1.5)), 3.0) * 1.3 * exp(-abs(uv.x) * 3.4);
+  float thinShaft = pow(noise(vec2(uv.x * 48.0, s * 2.0 + 9.0)), 10.0) * 3.2 * exp(-abs(uv.x) * 2.4);
+  float shafts = (wide + thinShaft) * exp(-abs(uv.y) * 0.9);
   float amber = smoothstep(0.6, 0.8, noise(vec2(uv.x * 5.0 + 7.0, s * 0.5)));
-  vec3 shaftCol = mix(vec3(0.80, 0.88, 1.0), vec3(1.0, 0.80, 0.58), amber * 0.7);
+  vec3 shaftCol = mix(PAL_LIGHT, PAL_ACCENT, amber * 0.7);
   col += shaftCol * shafts * (0.10 + 0.45 * lit + 0.3 * uPulse);
 
   // Riga orizzontale sottile.
   float h = exp(-abs(uv.y) * mix(320.0, 130.0, clamp(lit, 0.0, 1.0))) * exp(-abs(uv.x) * mix(2.2, 0.7, e));
-  col += vec3(0.86, 0.93, 1.0) * h * (0.15 + 0.8 * lit + 0.6 * uPulse);
+  col += mix(vec3(1.0), PAL_LIGHT, 0.7) * h * (0.15 + 0.8 * lit + 0.6 * uPulse);
 
   // Nucleo freddo e bianco.
   float r2 = rad * rad;
-  col += vec3(0.92, 0.96, 1.0) * exp(-r2 * mix(700.0, 120.0, clamp(lit, 0.0, 1.0))) * (0.3 + 1.4 * lit + uPulse);
-  col += vec3(0.70, 0.82, 1.0) * exp(-r2 * mix(50.0, 10.0, e)) * (0.03 + 0.35 * lit * lit + 0.1 * b);
+  col += mix(vec3(1.0), PAL_LIGHT, 0.4) * exp(-r2 * mix(700.0, 120.0, clamp(lit, 0.0, 1.0))) * (0.3 + 1.4 * lit + uPulse);
+  col += mix(PAL_DEEP, vec3(1.0), 0.4) * exp(-r2 * mix(50.0, 10.0, e)) * (0.03 + 0.35 * lit * lit + 0.1 * b);
 
   // Scintillii iridescenti dentro il cristallo.
   vec2 sp = w * 110.0;
@@ -317,10 +318,10 @@ void main() {
   float sh = hash(sid);
   float sd = length(fract(sp) - 0.5 - (vec2(hash(sid + 1.1), hash(sid + 2.2)) - 0.5) * 0.7) * uRes.y / 110.0;
   float spark = step(0.92, sh) * exp(-sd * sd * 1.2) * (body + needles) * (0.5 + 0.5 * sin(t * 4.0 + sh * 50.0));
-  vec3 iri = 0.6 + 0.4 * cos(6.2831 * (sh * 3.0 + vec3(0.0, 0.33, 0.67)));
+  vec3 iri = mix(0.6 + 0.4 * cos(6.2831 * (sh * 3.0 + vec3(0.0, 0.33, 0.67))), PAL_MID, 0.3);
   col += iri * spark * (0.5 + lit);
 
-  gl_FragColor = finish(col, vec3(0.016, 0.024, 0.042), rad);
+  gl_FragColor = finish(col, PAL_DEEP * 0.05, rad);
 }
 `;
 
@@ -380,15 +381,15 @@ void main() {
   vec2 flarePos = vec2((hash(vec2(cycle, 2.0)) - 0.5) * 0.4, (hash(vec2(cycle, 5.0)) - 0.3) * 0.6);
   float flare = exp(-length(uv - flarePos) * 7.0) * flareAmt * (0.4 + 0.5 * uMotion);
 
-  vec3 silver = mix(vec3(0.92, 0.92, 0.98), vec3(1.0, 0.95, 0.90), smoothstep(0.4, 0.7, cl));
+  vec3 silver = mix(PAL_LIGHT, PAL_MID, smoothstep(0.4, 0.7, cl));
   // Dentro i grappoli la luce è forte, fuori resta poca e debole.
   vec3 col = silver * light * (0.12 + 2.2 * cluster * cluster) * (0.5 + 0.9 * lit) * (0.8 + 0.4 * b);
   // Bagliore diffuso dove il pulviscolo è più fitto.
   col += silver * cluster * cluster * 0.12 * (0.5 + lit);
-  col += silver * dust * (0.5 + lit) + vec3(0.85, 0.88, 0.95) * streak * (0.3 + 0.5 * lit);
-  col += vec3(1.0, 0.97, 0.94) * (flare + uPulse * exp(-length(uv) * 3.0) * 0.6);
+  col += silver * dust * (0.5 + lit) + PAL_DEEP * streak * (0.3 + 0.5 * lit);
+  col += PAL_ACCENT * (flare + uPulse * exp(-length(uv) * 3.0) * 0.6);
 
-  gl_FragColor = finish(col, vec3(0.020, 0.018, 0.022), length(uv));
+  gl_FragColor = finish(col, PAL_DEEP * 0.025, length(uv));
 }
 `;
 
@@ -409,7 +410,7 @@ vec3 beam(vec2 uv, vec2 vertex, float angle, float spread, vec3 tint) {
     float edge = exp(-abs(side) * uRes.y * 0.35);
     float tangent = side / along;
     // max(): dal lato "spento" exp() andrebbe all'infinito e 0 × ∞ darebbe righe nere (NaN).
-    float plane = step(0.0, tangent) * exp(-max(tangent, 0.0) / spread) * 0.45;
+    float plane = step(0.0, tangent) * exp(-max(tangent, 0.0) / spread) * 0.7;
     float amount = (edge + plane) * exp(-along * 0.7);
     if (c == 0) col.r = amount; else if (c == 1) col.g = amount; else col.b = amount;
   }
@@ -426,22 +427,22 @@ void main() {
   // Il vertice vaga piano attorno al centro; i raggi spazzano lo schermo.
   vec2 vertex = vec2(0.09 * sin(t * 0.13), 0.12 * sin(t * 0.09 + 1.0));
   float spread = 0.25 + 0.2 * b;
-  vec3 blue = vec3(0.72, 0.84, 1.0);
-  vec3 violet = vec3(0.82, 0.66, 1.0);
-  vec3 pink = vec3(1.0, 0.70, 0.86);
+  vec3 blue = PAL_MID;
+  vec3 violet = PAL_DEEP;
+  vec3 pink = PAL_ACCENT;
 
   float a1 = 0.6 + 0.5 * sin(t * 0.11);
   vec3 col = beam(w, vertex, a1, spread, blue);
   col += beam(w, vertex, a1 + 3.14159, spread * 0.7, violet) * 0.8;
   col += beam(w, vertex, 2.4 + 0.6 * sin(t * 0.08 + 2.0), spread, pink) * 0.9;
   col += beam(w, vertex, -1.3 + 0.7 * sin(t * 0.07 + 4.0), spread * 1.3, blue) * 0.7;
-  col *= (0.30 + 0.9 * lit) * (0.85 + 0.3 * b);
+  col *= (0.45 + 1.0 * lit) * (0.85 + 0.3 * b);
 
   // Il vertice brilla dove i piani si incontrano.
   float r = length(w - vertex);
-  col += vec3(0.95, 0.95, 1.0) * (exp(-r * r * 1400.0) * (0.5 + 1.4 * lit + uPulse) + exp(-r * 9.0) * 0.12 * (0.5 + lit));
+  col += PAL_LIGHT * (exp(-r * r * 1400.0) * (0.5 + 1.4 * lit + uPulse) + exp(-r * 9.0) * 0.12 * (0.5 + lit));
 
-  gl_FragColor = finish(col, vec3(0.010, 0.010, 0.018), length(uv));
+  gl_FragColor = finish(col, PAL_DEEP * 0.018, length(uv));
 }
 `;
 

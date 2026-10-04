@@ -29,8 +29,8 @@ export function PageHeader({
         </Link>
       )}
       <div className="min-w-0 flex-1">
-        {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
-        <h1 className="text-title1 font-bold">{title}</h1>
+        {eyebrow && <p className="eyebrow on-backdrop mb-1">{eyebrow}</p>}
+        <h1 className="on-backdrop text-title1 font-bold">{title}</h1>
       </div>
       {action}
     </header>

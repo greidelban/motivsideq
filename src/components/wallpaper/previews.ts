@@ -1,12 +1,7 @@
-"use client";
-
-import { Panel } from "@/components/ui";
-import { useI18n } from "@/i18n/client";
-import { appearance } from "@/lib/light/appearance";
-import { BACKGROUNDS, type BackgroundId } from "@/lib/light/backgrounds";
+import type { BackgroundId } from "@/lib/light/backgrounds";
 
 // Anteprime in CSS: danno l'idea dello sfondo senza avviare altri WebGL.
-const PREVIEWS: Record<BackgroundId, string> = {
+export const WALLPAPER_PREVIEWS: Record<BackgroundId, string> = {
   smoke: [
     "linear-gradient(transparent 49%, rgb(255 230 235 / 0.7) 50%, transparent 51%)",
     "linear-gradient(90deg, transparent 49%, rgb(255 230 235 / 0.5) 50%, transparent 51%)",
@@ -55,43 +50,3 @@ const PREVIEWS: Record<BackgroundId, string> = {
     "#0a0e1a",
   ].join(", "),
 };
-
-export function BackgroundPicker() {
-  const { dict } = useI18n();
-  const t = dict.settings.background;
-  const { background } = appearance.use();
-
-  return (
-    <Panel>
-      <h2 id="background-title" className="mb-1 text-headline font-semibold">
-        {t.title}
-      </h2>
-      <p className="mb-4 text-footnote text-muted">{t.hint}</p>
-      <div role="radiogroup" aria-labelledby="background-title" className="grid grid-cols-2 gap-3">
-        {BACKGROUNDS.map((id) => {
-          const selected = id === background;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => appearance.set((s) => ({ ...s, background: id }))}
-              className="group flex flex-col gap-2 text-left"
-            >
-              <span
-                className={`block aspect-[4/3] w-full rounded-lg transition-shadow duration-150 ${
-                  selected ? "shadow-[0_0_0_2px_var(--primary)]" : "shadow-[inset_0_0_0_0.5px_var(--card-line)]"
-                }`}
-                style={{ background: PREVIEWS[id] }}
-                aria-hidden="true"
-              />
-              <span className={`text-subhead font-semibold ${selected ? "text-ink" : "text-ink-2"}`}>{t.options[id].name}</span>
-              <span className="text-caption text-muted">{t.options[id].text}</span>
-            </button>
-          );
-        })}
-      </div>
-    </Panel>
-  );
-}

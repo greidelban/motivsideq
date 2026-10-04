@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BackgroundPicker } from "@/components/BackgroundPicker";
 import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocalDataPanel } from "@/components/LocalDataPanel";
 import { MotionPicker } from "@/components/MotionPicker";
 import { PageHeader, Panel } from "@/components/ui";
+import { WallpaperButton } from "@/components/wallpaper/WallpaperButton";
 import { getI18n } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,7 +20,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader title={t.title} back={{ href: "/today", label: dict.common.back }} />
       <div className="space-y-4">
-        <BackgroundPicker />
+        <WallpaperButton />
         <MotionPicker />
         <LanguagePicker />
         <LocalDataPanel />

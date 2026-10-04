@@ -13,14 +13,14 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Recharts, Vitest.
   - routine "Risveglio" (4 esercizi, circa 4 minuti);
   - esercizi singoli: Reazione, Colori (Stroop), Calcolo rapido (Zetamac) e Tabella di Schulte;
   - per ogni esercizio: storico, record e confronto con il proprio solito.
-- **Luce viva:** lo sfondo animato, generato in tempo reale (WebGL, senza librerie) e ispirato ai video di illusioni ottiche di klsr. Si sceglie in Impostazioni:
+- **Luce viva:** lo sfondo animato, generato in tempo reale (WebGL, senza librerie) e ispirato ai video di illusioni ottiche di klsr. Si sceglie in Impostazioni → **Wallpaper** (pagina `/settings/wallpaper`), con 10 colori per ogni sfondo:
   - **Fumo:** fumo caldo (pesca, rosa, magenta), raggi di luce e la croce al centro;
   - **Galassia:** realistica e inclinata, con polvere scura, stelle di colori e luminosità diverse; ruota piano e respira;
   - **Cristallo:** luce che attraversa il ghiaccio, con aghi, brina, scintillii iridescenti e fasci verticali;
   - **Scintille:** grappoli di luci sfocate (bokeh) e polvere che brilla, con un bagliore lento ogni tanto;
   - **Prisma:** piani di luce dai bordi netti, con frange colorate, che ruotano attorno a un vertice;
   - **Classico:** lo sfondo fermo in CSS.
-  - Respira da solo e gira attorno al dito con un tocco. Scorrere e trascinare non lo deformano, e la barra del browser che compare e sparisce non lo stira (canvas alto `100lvh`).
+  - Respira da solo e gira attorno al dito con un tocco sullo sfondo libero (i tocchi su pulsanti, menu e pannelli non lo muovono). Scorrere e trascinare non lo deformano, e la barra del browser che compare e sparisce non lo stira (canvas alto `100lvh`).
   - Ogni schermata ne regola l'intensità, i giochi mandano impulsi di luce, e durante il Risveglio cresce come un'alba.
   - Con "riduci movimento" diventa un'immagine ferma; senza WebGL resta lo sfondo CSS.
 - **Animazioni** (cursore in Impostazioni, da "Ferme" a "Massime"): regola velocità e ampiezza degli sfondi e delle animazioni dell'interfaccia. "Riduci movimento" del sistema vince sempre.

@@ -6,9 +6,9 @@ import { useI18n } from "@/i18n/client";
 import { appearance } from "@/lib/light/appearance";
 import { motionLabel } from "@/lib/light/motion";
 
-// Cursore del livello di animazione. Con "riduci movimento" attivo nel sistema
-// il cursore si blocca: quella scelta vince sempre.
-export function MotionPicker() {
+// Cursore del livello di animazione (Impostazioni e pagina Wallpaper). Con
+// "riduci movimento" attivo nel sistema il cursore si blocca: quella scelta vince sempre.
+export function MotionSlider({ id = "motion", compact = false }: { id?: string; compact?: boolean }) {
   const { dict } = useI18n();
   const t = dict.settings.motion;
   const settings = appearance.use();
@@ -16,19 +16,23 @@ export function MotionPicker() {
   const level = reduced ? 0 : settings.motion;
 
   return (
-    <Panel>
+    <div>
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <h2 className="text-headline font-semibold">{t.title}</h2>
-        <span className="text-subhead font-semibold text-secondary" aria-hidden="true">
+        {compact ? (
+          <h2 className="eyebrow">{t.title}</h2>
+        ) : (
+          <h2 className="text-headline font-semibold">{t.title}</h2>
+        )}
+        <span className={`${compact ? "text-footnote" : "text-subhead"} font-semibold text-secondary`} aria-hidden="true">
           {t.levels[motionLabel(level)]}
         </span>
       </div>
-      <p className="mb-4 text-footnote text-muted">{t.hint}</p>
-      <label htmlFor="motion" className="sr-only">
+      {!compact && <p className="mb-4 text-footnote text-muted">{t.hint}</p>}
+      <label htmlFor={id} className="sr-only">
         {t.label}
       </label>
       <input
-        id="motion"
+        id={id}
         type="range"
         min={0}
         max={100}
@@ -36,7 +40,7 @@ export function MotionPicker() {
         value={level}
         disabled={reduced}
         aria-valuetext={t.levels[motionLabel(level)]}
-        aria-describedby={reduced ? "motion-reduced" : undefined}
+        aria-describedby={reduced ? `${id}-reduced` : undefined}
         onChange={(e) => appearance.set((s) => ({ ...s, motion: Number(e.target.value) }))}
         className="motion-range w-full"
       />
@@ -45,10 +49,18 @@ export function MotionPicker() {
         <span>{t.levels.max}</span>
       </div>
       {reduced && (
-        <p id="motion-reduced" className="mt-3 text-footnote text-ink-2">
+        <p id={`${id}-reduced`} className="mt-3 text-footnote text-ink-2">
           {t.reduced}
         </p>
       )}
+    </div>
+  );
+}
+
+export function MotionPicker() {
+  return (
+    <Panel>
+      <MotionSlider />
     </Panel>
   );
 }

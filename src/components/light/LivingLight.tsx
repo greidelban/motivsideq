@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { appearance } from "@/lib/light/appearance";
+import { appearance, paletteFor } from "@/lib/light/appearance";
 import { RENDER_SCALE, isAnimated } from "@/lib/light/backgrounds";
 import { pulseLight, readLight, setGuidedBreath, setLightEnergy, writeLight } from "@/lib/light/bus";
 import { breath, guidedEnergy, idleBreath, stepLight } from "@/lib/light/envelope";
 import { timeScale } from "@/lib/light/motion";
+import { paletteUniform } from "@/lib/light/palettes";
 import { VERTEX_SHADER, fragmentShaderFor } from "./shader";
 
 // Si disegna a risoluzione ridotta (RENDER_SCALE, per sfondo) e il browser
@@ -15,6 +16,10 @@ const MAX_PIXELS = 360_000;
 // Trascinare o scorrere la pagina non deve deformare lo sfondo.
 const TAP_MAX_MOVE_PX = 10;
 const TAP_MAX_MS = 450;
+// Toccare un controllo o un pannello non deve far girare lo sfondo: il vortice
+// risponde solo ai tocchi sullo sfondo libero.
+const UI_SELECTOR =
+  "a, button, input, select, textarea, label, [role=button], [role=radio], [role=slider], nav, header, .glass, .glass-elevated, .glass-clear, .card";
 const FRAME_MS = 1000 / 40;
 const POINTER_DECAY = 1.4;
 
@@ -55,7 +60,16 @@ function createProgram(gl: WebGLRenderingContext, fragmentSource: string) {
  */
 export function LivingLight() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { background } = appearance.use();
+  const settings = appearance.use();
+  const { background } = settings;
+  // Con lo sfondo classico, durante gli esercizi si disegna il fumo.
+  const drawn = isAnimated(background) ? background : "smoke";
+  const palette = paletteFor(settings, drawn);
+  // Il colore cambia senza ricreare il programma WebGL: lo legge il disegno.
+  const paletteRef = useRef({ key: "", value: paletteUniform(drawn, palette) });
+  useEffect(() => {
+    paletteRef.current = { key: `${drawn}:${palette}`, value: paletteUniform(drawn, palette) };
+  }, [drawn, palette]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,8 +82,6 @@ export function LivingLight() {
       preserveDrawingBuffer: false,
     });
     if (!gl) return;
-    // Con lo sfondo classico si prepara comunque il fumo, per quando un esercizio lo accende.
-    const drawn = isAnimated(background) ? background : "smoke";
     const program = createProgram(gl, fragmentShaderFor(drawn));
     if (!program) return;
 
@@ -90,6 +102,7 @@ export function LivingLight() {
       breath: gl.getUniformLocation(program, "uBreath"),
       pointer: gl.getUniformLocation(program, "uPointer"),
       motion: gl.getUniformLocation(program, "uMotion"),
+      palette: gl.getUniformLocation(program, "uPal"),
     };
 
     const pointer = { x: 0, y: 0, tx: 0, ty: 0, amount: 0 };
@@ -143,6 +156,7 @@ export function LivingLight() {
       gl.uniform1f(u.pulse, still ? 0 : light.pulse);
       gl.uniform1f(u.breath, still ? 0.5 : (guided ?? idleBreath(now)));
       gl.uniform3f(u.pointer, pointer.x, pointer.y, still ? 0 : pointer.amount);
+      gl.uniform3fv(u.palette, paletteRef.current.value);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
@@ -171,7 +185,7 @@ export function LivingLight() {
     let stillKey = "";
     function drawStill() {
       const visible = shouldShow();
-      const key = `${visible}:${readLight().target.toFixed(2)}:${canvas?.width}x${canvas?.height}`;
+      const key = `${visible}:${readLight().target.toFixed(2)}:${canvas?.width}x${canvas?.height}:${paletteRef.current.key}`;
       // Livello rialzato da 0: si riparte con l'animazione.
       if (readLight().motion > 0) return start();
       if (key === stillKey) return;
@@ -198,7 +212,8 @@ export function LivingLight() {
     // trascinamento) o resta giù a lungo, non succede nulla.
     let tapStart: { x: number; y: number; at: number } | null = null;
     function onPointerDown(e: PointerEvent) {
-      tapStart = { x: e.clientX, y: e.clientY, at: performance.now() };
+      const onUi = e.target instanceof Element && e.target.closest(UI_SELECTOR);
+      tapStart = onUi || e.button !== 0 ? null : { x: e.clientX, y: e.clientY, at: performance.now() };
     }
     function onPointerUp(e: PointerEvent) {
       const start = tapStart;
@@ -258,7 +273,7 @@ export function LivingLight() {
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
     };
-  }, [background]);
+  }, [background, drawn]);
 
   return <canvas ref={canvasRef} aria-hidden="true" className="living-light" />;
 }

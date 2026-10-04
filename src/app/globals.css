@@ -83,6 +83,9 @@
 
   /* Livello di animazione 0..1, scritto da MotionSync (Impostazioni → Animazioni). */
   --motion: 0.7;
+  /* Aloni dello sfondo classico ("r g b"), scritti da MotionSync dalla palette scelta. */
+  --aura-a: 176 38 255;
+  --aura-b: 0 200 224;
 }
 
 @theme inline {
@@ -170,10 +173,11 @@ body::before {
   inset: 0;
   z-index: -2;
   pointer-events: none;
+  /* Colori degli aloni: palette dello sfondo "classico" (Wallpaper → colori). */
   background:
-    radial-gradient(60% 38% at 12% -4%, rgb(176 38 255 / 0.3), transparent 70%),
-    radial-gradient(48% 34% at 104% 26%, rgb(0 200 224 / 0.2), transparent 70%),
-    radial-gradient(70% 40% at 40% 108%, rgb(176 38 255 / 0.16), transparent 70%),
+    radial-gradient(60% 38% at 12% -4%, rgb(var(--aura-a) / 0.3), transparent 70%),
+    radial-gradient(48% 34% at 104% 26%, rgb(var(--aura-b) / 0.2), transparent 70%),
+    radial-gradient(70% 40% at 40% 108%, rgb(var(--aura-a) / 0.16), transparent 70%),
     var(--bg);
 }
 
@@ -346,6 +350,14 @@ body::before {
   .num {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Testo appoggiato direttamente sullo sfondo vivo (titoli delle pagine):
+     un'ombra morbida lo tiene leggibile anche sugli sfondi più luminosi. */
+  .on-backdrop {
+    text-shadow:
+      0 1px 2px rgb(2 4 12 / 0.7),
+      0 2px 16px rgb(2 4 12 / 0.85);
   }
 
   /* Etichette piccole maiuscole sopra i dati */

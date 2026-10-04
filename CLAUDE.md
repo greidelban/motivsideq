@@ -23,7 +23,8 @@
   - l'energia è un solo dato e sta nel diario;
   - tolleranza delle kcal sugli alimenti: 20% o 10 kcal.
 - **Luce viva** (sfondo WebGL, src/components/light/):
-  - sfondi in `src/lib/light/backgrounds.ts` (fumo, galassia, classico), scelta salvata con `appearance`;
+  - sfondi in `src/lib/light/backgrounds.ts`, colori in `src/lib/light/palettes.ts` (10 temi, 4 ruoli: light/mid/deep/accent = `PAL_*` negli shader); scelta salvata con `appearance`;
+  - mai colori fissi negli shader (tranne quelli "naturali", es. temperatura delle stelle): usare i ruoli della palette;
   - un nuovo sfondo = un fragment shader in `shader.ts` e una voce nei dizionari (`settings.background.options`);
   - ogni schermata ne imposta l'intensità con `useLightEnergy()` (client) o `<LightLevel>` (server);
   - gli eventi positivi mandano `pulseLight()`;
