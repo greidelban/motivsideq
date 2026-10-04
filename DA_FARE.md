@@ -33,7 +33,7 @@ Il login era già pronto ed è stato messo da parte in `archivio/login/` (esclus
 - [ ] Test automatici delle regole RLS (un utente non deve vedere i dati di un altro).
 
 ## 4. Pubblicazione
-- [ ] Inizializzare git e fare il primo commit (il progetto non è ancora sotto controllo di versione).
+- [x] Git inizializzato e pubblicato su GitHub: https://github.com/greidelban/motivsideq (pubblico).
 - [ ] Scegliere l'hosting (es. Vercel, piano gratuito) e un dominio; HTTPS obbligatorio per la PWA.
 - [ ] Impostare le variabili d'ambiente in produzione e aggiungere l'URL di produzione ai Redirect URLs di Supabase.
 - [ ] Scegliere il nome definitivo dell'app (ora "Ritmo", in `src/lib/app.ts`) e rifare l'icona se serve (`npm run icons`).
