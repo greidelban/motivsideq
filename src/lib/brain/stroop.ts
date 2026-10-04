@@ -17,7 +17,7 @@ export type StroopColorId = (typeof STROOP_COLORS)[number]["id"];
 export type StroopTrial = { word: StroopColorId; ink: StroopColorId };
 
 export const STROOP_TRIALS = 20;
-export const STROOP_INCONGRUENT_RATIO = 0.75;
+const STROOP_INCONGRUENT_RATIO = 0.75;
 
 const IDS = STROOP_COLORS.map((c) => c.id);
 

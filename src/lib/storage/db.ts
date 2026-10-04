@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { openIdbBackend } from "./backends";
 import { ALL_DEFS } from "./definitions";
 import { createLocalDb, useLocalDbReady } from "./local-db";
@@ -32,6 +33,15 @@ if (browser) {
   if (window.matchMedia?.("(display-mode: standalone)").matches) {
     void navigator.storage?.persist?.().catch(() => {});
   }
+}
+
+/** Vero quando l'ultimo salvataggio sul dispositivo non è riuscito (spazio pieno, navigazione privata...). */
+export function useLocalSaveFailed(): boolean {
+  return useSyncExternalStore(
+    localDb.onWriteError,
+    () => localDb.lastWriteError() !== null,
+    () => false,
+  );
 }
 
 /** Vero quando i dati dell'utente sono caricati (prima, gli store danno i valori iniziali). */

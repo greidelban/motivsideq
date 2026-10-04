@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authErrorKey, fieldErrors, newPasswordSchema, signInSchema, signUpSchema } from "./validation";
+import { authErrorKey, emailOnlySchema, fieldErrors, newPasswordSchema, signInSchema, signUpSchema } from "./validation";
 
 describe("campi di accesso", () => {
   it("email pulita e in minuscolo", () => {
@@ -18,6 +18,13 @@ describe("campi di accesso", () => {
     const long = "a".repeat(73);
     const r = newPasswordSchema.safeParse({ password: long, passwordConfirm: long });
     expect(!r.success && fieldErrors(r.error).password).toBe("passwordLong");
+  });
+
+  it("email troppo lunga e password mancante hanno la loro chiave", () => {
+    const tooLong = emailOnlySchema.safeParse({ email: `${"a".repeat(250)}@x.it` });
+    expect(!tooLong.success && fieldErrors(tooLong.error)).toEqual({ email: "email" });
+    const missing = signInSchema.safeParse({ email: "a@b.it", password: "" });
+    expect(!missing.success && fieldErrors(missing.error)).toEqual({ password: "passwordMissing" });
   });
 
   it("messaggi generici: non rivelano se l'email esiste", () => {

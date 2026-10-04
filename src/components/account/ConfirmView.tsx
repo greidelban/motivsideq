@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FormMessage, Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
-import { getSupabase } from "@/lib/supabase/client";
+import { loadSupabase } from "@/lib/supabase/client";
 import { NewPasswordForm } from "./AccountView";
 
 const OTP_TYPES: readonly EmailOtpType[] = ["signup", "invite", "magiclink", "recovery", "email_change", "email"];
@@ -28,13 +28,15 @@ export function ConfirmView() {
     started.current = true;
     const tokenHash = params.get("token_hash");
     const type = params.get("type") as EmailOtpType | null;
-    const supabase = getSupabase();
-    const check =
+    // Il codice non resta nell'indirizzo né nella cronologia del browser.
+    window.history.replaceState(null, "", window.location.pathname);
+    const check = loadSupabase().then((supabase) =>
       supabase && tokenHash && type && OTP_TYPES.includes(type)
         ? supabase.auth
             .verifyOtp({ type, token_hash: tokenHash })
             .then(({ error }): State => (error ? "invalid" : type === "recovery" ? "recovery" : "confirmed"))
-        : Promise.resolve<State>("invalid");
+        : ("invalid" as const),
+    );
     check.then(setState).catch(() => setState("invalid"));
   }, [params]);
 

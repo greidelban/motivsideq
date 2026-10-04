@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { addDays, localDateKey } from "@/lib/dates";
 
 // Tipi di allenamento con i MET (Compendium of Physical Activities, valori
@@ -7,7 +7,7 @@ import { addDays, localDateKey } from "@/lib/dates";
 export const WORKOUT_CATEGORIES = ["strength", "cardio", "mindBody", "sports"] as const;
 export type WorkoutCategory = (typeof WORKOUT_CATEGORIES)[number];
 
-export const WORKOUT_TYPES = {
+const WORKOUT_TYPES = {
   gym: { category: "strength", met: [3.5, 5, 6] },
   calisthenics: { category: "strength", met: [3.8, 5, 8] },
   crossfit: { category: "strength", met: [5.5, 7.5, 9.5] },
@@ -30,22 +30,21 @@ export const WORKOUT_TYPES = {
 } as const satisfies Record<string, { category: WorkoutCategory; met: readonly [number, number, number] }>;
 
 export type WorkoutType = keyof typeof WORKOUT_TYPES;
-export const WORKOUT_TYPE_IDS = Object.keys(WORKOUT_TYPES) as [WorkoutType, ...WorkoutType[]];
+const WORKOUT_TYPE_IDS = Object.keys(WORKOUT_TYPES) as [WorkoutType, ...WorkoutType[]];
 
-export const INTENSITIES = [1, 2, 3] as const;
-export type Intensity = (typeof INTENSITIES)[number];
+export type Intensity = 1 | 2 | 3;
 
 export const MAX_MINUTES = 600;
 
 export const workoutSchema = z.object({
-  id: z.string().max(64),
+  id: z.string().check(z.maxLength(64)),
   /** Giorno locale AAAA-MM-GG. */
-  day: z.string().max(10),
-  at: z.string().max(40),
+  day: z.string().check(z.maxLength(10)),
+  at: z.string().check(z.maxLength(40)),
   type: z.enum(WORKOUT_TYPE_IDS),
-  minutes: z.number().int().min(1).max(MAX_MINUTES),
+  minutes: z.int().check(z.gte(1), z.lte(MAX_MINUTES)),
   intensity: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  note: z.string().max(200).optional(),
+  note: z.optional(z.string().check(z.maxLength(200))),
 });
 export type Workout = z.infer<typeof workoutSchema>;
 

@@ -31,7 +31,7 @@ export function HealthNav() {
             href={href}
             prefetch
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full text-subhead font-semibold transition-colors duration-150 ${
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-subhead font-semibold transition-colors duration-150 ${
               active ? "text-ink" : "text-muted hover:text-ink-2"
             }`}
             style={active ? { background: "var(--glass-lens)", boxShadow: "var(--glass-lens-edge)" } : undefined}

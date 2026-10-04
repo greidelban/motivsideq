@@ -5,12 +5,13 @@ import { interpolate } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { APP_NAME } from "@/lib/app";
 
-// Versione per l'app senza account (dati solo sul dispositivo).
-// Quella per l'app con account e server è in archivio/login/src/app/privacy.
-// TODO prima della pubblicazione: completare i dati del titolare (vedi DA_FARE.md).
+// Descrive cosa fa davvero l'app, con e senza cloud: va aggiornata a ogni dato
+// che il gestore può vedere (oggi: email, date dell'account, piano; il resto è cifrato).
+// TODO prima della pubblicazione: completare i dati del titolare e farla rivedere
+// da un consulente privacy (vedi DA_FARE.md).
 const CONTROLLER = "[Name / company of the data controller]";
 const CONTACT = "[privacy contact email]";
-const LAST_UPDATE = new Date(2026, 9, 3);
+const LAST_UPDATE = new Date(2026, 9, 4);
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: "Privacy" };
@@ -42,13 +43,33 @@ export default async function PrivacyPage() {
           <p className="mt-2 text-subhead text-muted">{t.intro}</p>
         </header>
 
-        <Section title={t.where.title}>
-          <p>{t.where.p1}</p>
-          <p>{t.where.p2}</p>
+        <Section title={t.device.title}>
+          <p>{t.device.p1}</p>
+          <p>{t.device.p2}</p>
+        </Section>
+
+        <Section title={t.account.title}>
+          <p>{t.account.p1}</p>
+          <p>{t.account.p2}</p>
+          <p>{t.account.p3}</p>
         </Section>
 
         <Section title={t.controller.title}>
           <p>{interpolate(t.controller.body, { controller: CONTROLLER, contact: CONTACT })}</p>
+          <p>{t.controller.processor}</p>
+        </Section>
+
+        <Section title={t.basis.title}>
+          <p>{t.basis.body}</p>
+        </Section>
+
+        <Section title={t.retention.title}>
+          <p>{interpolate(t.retention.body, { contact: CONTACT })}</p>
+          <p>{t.retention.device}</p>
+        </Section>
+
+        <Section title={t.rights.title}>
+          <p>{interpolate(t.rights.body, { contact: CONTACT })}</p>
         </Section>
 
         <Section title={t.cookies.title}>
@@ -57,10 +78,6 @@ export default async function PrivacyPage() {
 
         <Section title={t.age.title}>
           <p>{t.age.body}</p>
-        </Section>
-
-        <Section title={t.future.title}>
-          <p>{t.future.body}</p>
         </Section>
 
         <Section title={t.health.title}>

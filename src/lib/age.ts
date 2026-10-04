@@ -1,5 +1,5 @@
 export const MIN_AGE = 14;
-export const ADULT_AGE = 18;
+const ADULT_AGE = 18;
 
 /**
  * Età in anni compiuti da mese (1-12) e anno di nascita.

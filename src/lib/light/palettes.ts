@@ -60,7 +60,3 @@ export function hexToRgb(hex: string): [number, number, number] {
 export function paletteUniform(background: BackgroundId, palette: PaletteId): Float32Array {
   return new Float32Array(paletteHex(background, palette).flatMap(hexToRgb));
 }
-
-export function isPaletteId(value: unknown): value is PaletteId {
-  return typeof value === "string" && (PALETTE_IDS as readonly string[]).includes(value);
-}

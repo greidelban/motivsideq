@@ -29,3 +29,10 @@ export function formatDuration(locale: Locale, ms: number): string {
 export function formatPercent(locale: Locale, fraction: number): string {
   return Math.abs(fraction).toLocaleString(locale, { style: "percent", maximumFractionDigits: 0 });
 }
+
+/** Spazio leggibile: "850 kB", "12.4 MB" (o "12,4 MB"), "1 GB". */
+export function formatBytes(locale: Locale, bytes: number): string {
+  const [unit, size] = bytes >= 1e9 ? (["gigabyte", 1e9] as const) : bytes >= 1e6 ? (["megabyte", 1e6] as const) : (["kilobyte", 1e3] as const);
+  const value = bytes / size;
+  return value.toLocaleString(locale, { style: "unit", unit, unitDisplay: "short", maximumFractionDigits: value < 10 ? 1 : 0 });
+}

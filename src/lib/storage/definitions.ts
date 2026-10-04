@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { brainResultSchema } from "@/lib/brain/history";
 import { consentSchema, dayLogSchema, periodSchema } from "@/lib/health/cycle";
 import { foodEntrySchema } from "@/lib/health/food";
@@ -12,7 +12,7 @@ import type { Def, DocDef, ListDef } from "./records";
 // Le impostazioni del dispositivo (sfondo, animazioni, durata del calcolo)
 // restano in localStorage: sono piccole, servono subito e non vanno nel cloud.
 
-const list = <T,>(name: string, item: z.ZodType<T>, keyOf: (item: T) => string, sync = true): ListDef<T> => ({
+const list = <T,>(name: string, item: z.core.$ZodType<T>, keyOf: (item: T) => string, sync = true): ListDef<T> => ({
   kind: "list",
   name,
   item,
@@ -20,7 +20,7 @@ const list = <T,>(name: string, item: z.ZodType<T>, keyOf: (item: T) => string, 
   sync,
 });
 
-const doc = <T,>(name: string, schema: z.ZodType<T>, fallback: T, sync = true): DocDef<T> => ({
+const doc = <T,>(name: string, schema: z.core.$ZodType<T>, fallback: T, sync = true): DocDef<T> => ({
   kind: "doc",
   name,
   schema,
@@ -37,9 +37,9 @@ export const DEFS = {
   cycleConsent: doc("cycle-consent", consentSchema, null),
   cyclePeriods: list("cycle-periods", periodSchema, (p) => p.id),
   cycleDayLogs: list("cycle-day-logs", dayLogSchema, (l) => l.day),
-  // Momento dell'ultima cancellazione totale del ciclo: con l'account servirà
-  // a chiedere la stessa cancellazione al server (delete_cycle_data).
-  cycleWipedAt: doc("cycle-wiped-at", z.string().max(40).nullable(), null, false),
 };
 
 export const ALL_DEFS: readonly Def[] = Object.values(DEFS) as Def[];
+
+/** Elenchi che vanno nel cloud cifrato (con l'abbonamento). */
+export const SYNCED_COLLECTIONS: readonly string[] = ALL_DEFS.filter((d) => d.sync).map((d) => d.name);

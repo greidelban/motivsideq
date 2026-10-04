@@ -11,8 +11,8 @@ export type LightState = {
 };
 
 // Velocità con cui l'energia insegue il valore desiderato e con cui gli impulsi si spengono.
-export const ENERGY_RATE = 1.4;
-export const PULSE_DECAY = 2.4;
+const ENERGY_RATE = 1.4;
+const PULSE_DECAY = 2.4;
 export const MAX_PULSE = 1.5;
 
 export function stepLight(s: LightState, dtSec: number): LightState {

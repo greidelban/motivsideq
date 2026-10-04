@@ -5,7 +5,7 @@ import { DICTIONARIES } from "./dictionaries";
 
 // Lingua della richiesta: quella scelta in Impostazioni (cookie), altrimenti
 // quella del browser, altrimenti l'inglese.
-export const getLocale = cache(async (): Promise<Locale> => {
+const getLocale = cache(async (): Promise<Locale> => {
   const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;
   if (isLocale(chosen)) return chosen;
   return matchLocale((await headers()).get("accept-language"));

@@ -10,7 +10,7 @@ export function Chip({ active, onClick, children }: { active: boolean; onClick: 
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-10 rounded-full px-3.5 text-subhead font-medium transition-colors duration-150 ${
+      className={`min-h-11 min-w-11 rounded-full px-3.5 text-subhead font-medium transition-colors duration-150 ${
         active ? "text-ink" : "card text-muted hover:text-ink-2"
       }`}
       style={active ? { background: "var(--glass-lens)", boxShadow: "var(--glass-lens-edge)" } : undefined}

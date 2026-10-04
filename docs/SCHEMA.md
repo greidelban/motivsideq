@@ -1,106 +1,78 @@
 # Schema del database
 
-> **Per ora non è in uso:** l'app salva i dati sul dispositivo (IndexedDB, vedi README, "Stato attuale").
->
-> **Schema v2** (fase A2): le migrazioni in `supabase/migrations/`. Dove questo documento e le migrazioni non coincidono, valgono le migrazioni:
-> - regole di sincronizzazione su ogni tabella privata: id generati sul telefono, `created_at`, `updated_at` (vince l'ultima modifica), `deleted_at` (cancellazione morbida), `server_updated_at` (scritto solo dal server);
-> - righe "una al giorno" con chiave (utente, giorno): `body_weights`, `journal_entries`, `cycle_day_logs`;
-> - tabelle nuove: `brain_results` (Mente), `write_counters` (limiti giornalieri);
-> - `journal_entries` è anche il check-in giornaliero (umore, energia, fame, sonno) ed è pronta per la cifratura del solo testo (`content_encryption`);
-> - `profiles`: `weight_unit`, `cycle_tracking_enabled`, `cycle_wiped_at`; data di nascita correggibile;
-> - Ciclo accessibile solo con `can_use_cycle()` (donna, maggiorenne, sezione attiva, consenso sulla versione corrente); rapporti, protezione e pillola non sono nel database.
->
-> Questa pagina verrà riscritta quando la v2 diventerà migrazioni.
+Postgres su Supabase (progetto in UE). Le migrazioni stanno in `supabase/migrations/`, si eseguono in ordine di nome e sono **la fonte di verità**: questo documento le riassume. Ogni `npm test` le prova su un Postgres in memoria (`src/lib/storage/schema.test.ts`); `npm run test:e2e` prova la sincronizzazione vera sul Supabase del PC.
 
-Postgres su Supabase. Le migrazioni stanno in `supabase/migrations/` e si eseguono in ordine di nome.
-Stato: ✅ creata · ⏳ arriverà con il modulo indicato.
+## Il principio: il gestore non legge niente
 
-## Convenzioni
+Dal 4/10/2026 (migrazione `20261005090000_e2e_vault.sql`) i dati degli utenti arrivano al server **già cifrati** sul dispositivo, con una chiave che solo l'utente possiede (`src/lib/crypto/vault.ts`). Nel database non ci sono più tabelle con peso, profilo, diario, ciclo o allenamenti in chiaro.
 
-- Ogni tabella privata: `user_id uuid not null default auth.uid()` → `auth.users` con `ON DELETE CASCADE`; RLS attiva con policy `user_id = auth.uid()`.
-- Il client non scrive mai `user_id`: lo mette il default, e i privilegi di colonna non lo includono.
-- Su ogni tabella si parte da `revoke all ... from anon, authenticated` e si concede solo il necessario.
-- I valori derivati (streak, record, 1RM, peso suggerito, stallo, fase del ciclo, avvisi) si **calcolano**, non si salvano.
-- Le funzioni `SECURITY DEFINER` hanno `set search_path = ''`.
-- I messaggi d'errore dei trigger sono in italiano (`errcode P0001`) e si possono mostrare all'utente.
+| Cosa | Il gestore lo vede? |
+|---|---|
+| Email, date di registrazione e di accesso (Supabase Auth) | sì (servono per entrare e recuperare la password) |
+| Piano (`free` / `pro`) | sì |
+| Numero di righe, loro dimensione e date di modifica | sì |
+| Contenuto, tipo di dato (peso, ciclo…), giorno a cui si riferisce | **no** |
+| Chiave dei dati | **no**: c'è solo impacchettata con il codice di recupero |
 
-## Relazioni
+Un test (`schema.test.ts`, "nessuna colonna con dati dell'utente in chiaro") elenca le colonne ammesse: una colonna nuova va aggiunta lì solo se il gestore può vederla.
 
-```
-auth.users 1─1 profiles
-auth.users 1─N body_weights · journal_entries · workout_sessions · workout_sets · exercises (personalizzati)
-              food_logs · saved_meals · food_votes · health_consents · cycle_periods
-              cycle_day_logs · weekly_insights · foods (created_by, SET NULL)
-workout_sessions 1─N workout_sets N─1 exercises
-foods 1─N food_votes · food_logs (SET NULL) · saved_meal_items
-saved_meals 1─N saved_meal_items
-```
+## Migrazioni
 
-## Core ✅ (`20261003090000_core.sql`)
+| File | Contenuto |
+|---|---|
+| `20261003090000_core.sql` … `20261004150000_row_totals.sql` | prima versione (tabelle in chiaro), limiti giornalieri e totali, regola "vince l'ultima modifica" |
+| `20261005090000_e2e_vault.sql` | toglie le tabelle in chiaro e crea `user_keys`, `vault_records`, `vault_usage`, `has_cloud()`, `reset_vault()` |
+
+## Tabelle
 
 ### `profiles`
-Una riga per utente, creata dal trigger `on_auth_user_created`.
+Una riga per utente, creata alla registrazione: `id`, `plan`, date. Il client la legge soltanto; `plan` lo cambierà la verifica degli acquisti in-app.
 
-| Colonna | Tipo | Note |
+### `user_keys`
+La chiave dati impacchettata (`wrapped_key`) con il codice di recupero, più la sua impronta (`key_id`).
+- Inserita dal primo dispositivo (solo con l'abbonamento); un nuovo codice cambia solo `wrapped_key`; `key_id` non si cambia.
+- Il codice di recupero ha 160 bit casuali: senza, `wrapped_key` è inutilizzabile.
+
+### `vault_records`
+Tutti i dati dell'utente, una riga per elemento:
+
+| Colonna | Note |
+|---|---|
+| `id` | HMAC di (elenco, chiave dell'elemento): 64 caratteri esadecimali, non rivela tipo né giorno |
+| `key_id` | impronta della chiave usata: se non è quella attuale la riga è rifiutata (`KY001`) |
+| `payload` | `v1.` + AES-GCM (nonce casuale; l'id è dato associato); ≤ 256 kB |
+| `created_at` | ora di arrivo sul server (quella vera di creazione è cifrata) |
+| `updated_at` | ora della modifica sul telefono: decide i conflitti (vince la più recente) |
+| `deleted_at` | cancellazione: il contenuto cifrato diventa vuoto, la riga resta come segnale |
+| `server_updated_at` | scritto solo dal server: il telefono scarica ciò che è cambiato dopo l'ultima volta |
+
+Chiave `(user_id, id)`. Il client può leggere le proprie righe e, con l'abbonamento, inserirle e aggiornarle; mai cancellarle.
+
+### Limiti contro gli abusi
+- **Al giorno** (`write_counters`, errore `RL001`): 50.000 righe nuove; l'app tiene i dati in coda e riprova il giorno dopo.
+- **In totale** (`row_totals`, errore `RL002`): 500.000 righe.
+- **Spazio** (`vault_usage`, errore `RL002`): 256 MB per utente; si può sempre accorciare una riga.
+- Si contano solo le righe davvero nuove (un invio ritentato non consuma il limite due volte); le scritture del server non si contano. Nessuna di queste tabelle è leggibile dal client.
+
+## Funzioni
+
+| Funzione | Chi | Cosa fa |
 |---|---|---|
-| `id` | uuid PK → auth.users | |
-| `display_name` | text ≤ 50 | |
-| `sex` | `female` / `male` | serve solo per la formula del metabolismo |
-| `height_cm` | numeric 100–250 | |
-| `birth_year`, `birth_month` | smallint | non modificabili dopo l'inserimento |
-| `activity_level` | `sedentary` … `very_active` | |
-| `goal` | `lose` / `maintain` / `gain` | `lose` vietato sotto i 18 anni |
-| `kcal_goal` | int 800–6000 | forzato a null sotto i 18 anni |
-| `protein_goal_g` | int 20–400 | |
-| `goals_source` | `auto` / `manual` | se `manual`, non si propone il ricalcolo |
-| `goals_weight_kg` | numeric | peso usato nell'ultimo calcolo (soglia di ricalcolo ±2 kg) |
-| `disclaimer_version`, `disclaimer_accepted_at` | | scritti solo da `accept_disclaimer()` |
-| `onboarding_completed_at` | timestamptz | scritto solo da `complete_onboarding()` |
-| `timezone` | text | default `Europe/Rome` |
-| `plan` | `free` / `pro` | **non** modificabile dal client |
+| `has_cloud()` | policy | il piano dell'utente include il cloud? |
+| `reset_vault()` | client | codice perso: cancella davvero righe cifrate e chiave dell'utente |
+| `sync_guard()` | trigger | vince l'ultima modifica, date nel futuro riportate al presente |
+| `vault_key_guard()` | trigger | piano attivo e chiave giusta, prima di ogni scrittura |
+| `rate_limit_inserts()`, `vault_usage_track()` | trigger | limiti giornalieri, totali e di spazio |
 
-Privilegi del client: `SELECT`, più `UPDATE` sulle sole colonne del profilo e degli obiettivi. Niente `INSERT` né `DELETE`.
-Trigger `profiles_guard`: età minima 14 anni, data di nascita bloccata, regole per i minorenni.
+## Cosa fa l'app (non il server)
 
-### `body_weights`
-`id`, `user_id`, `measured_on` (date), `weight_kg` (25–400), `UNIQUE(user_id, measured_on)`.
+- **Regole su età e Ciclo:** età minima 14 anni, niente dimagrimento né obiettivo calorico sotto i 18, Ciclo solo per donne maggiorenni con consenso. Il server non conosce sesso né data di nascita.
+- **Export:** la copia di sicurezza in JSON si fa dall'app (Impostazioni), con i dati già decifrati sul dispositivo.
+- **Rapporti, protezione e pillola:** se un giorno arriveranno, restano solo sul telefono (decisione con l'utente).
 
-### Funzioni
-| Funzione | Chi la chiama | Cosa fa |
-|---|---|---|
-| `age_from_birth(year, month)` | interna | età prudente (nel mese del compleanno conta come non compiuto); stessa logica in `src/lib/age.ts` |
-| `current_disclaimer_version()` | interna | versione corrente del disclaimer (= `DISCLAIMER_VERSION` in `src/lib/legal.ts`) |
-| `accept_disclaimer(p_version)` | client | registra l'accettazione con l'ora del server |
-| `complete_onboarding()` | client | chiude l'onboarding solo se i dati obbligatori ci sono |
-| `current_user_is_adult()` | policy | usata dal modulo ciclo |
+## Da fare
 
-## Diario ⏳
-`journal_entries`: `id`, `user_id`, `entry_date`, `content` (≤ 20.000), `mood` 1–5, `energy` 1–5, `sleep_hours` 0–24, `prompt_key`, `search` (tsvector italiano, GIN), `UNIQUE(user_id, entry_date)`. È l'unica fonte dell'energia, anche per il ciclo.
-
-## Allenamento ⏳
-- `exercises`: `owner_id` null = catalogo (~30 nel seed); `name`, `muscle_group`, `equipment`.
-- `workout_sessions`: `performed_on`, `activity_type` (tipi di `src/lib/health/workouts.ts`), `duration_min`, `intensity` 1–3, `notes` (SQL pronto in DA_FARE.md, sezione 1b). Le kcal si calcolano (MET × peso × ore).
-- `workout_sets`: `session_id`, `exercise_id`, `position`, `target_reps`, `reps`, `weight_kg`, `rpe` 1–10, `execution_note`. Una FK composta `(session_id, user_id)` impedisce di aggiungere serie alle sessioni di altri.
-- Vista `exercise_session_stats` (`security_invoker`): peso massimo, volume, 1RM Epley, ripetizioni completate, RPE massimo per esercizio e sessione.
-
-## Alimentazione ⏳
-- `foods` (**condivisa**): valori per 100 g, porzione, `status` (`pending`/`verified`/`hidden`), contatori. Controlli: |kcal − (4P+4C+9G)| ≤ max(20%, 10 kcal) e P+C+G ≤ 100. Stato e contatori li scrivono solo i trigger. L'autore può modificare solo finché l'alimento non è verificato, e ogni modifica azzera i voti. Il client non può cancellare. Limite: 20 alimenti al giorno per utente.
-- `food_votes`: PK `(food_id, user_id)`, visibili solo a chi li ha dati, mai sul proprio alimento, massimo 100 al giorno.
-- `food_logs`: copia di nome, kcal e macro al momento della registrazione; `food_id` null per l'inserimento manuale rapido.
-  Oggi l'app usa solo l'inserimento manuale, con `meal` (`breakfast`/`lunch`/`dinner`/`snack`).
-- `saved_meals`, `saved_meal_items`.
-- Seed: ~45 alimenti comuni, verificati e senza autore.
-
-## Insight ⏳
-`weekly_insights`: `week_start`, `generated_at`, `engine` (`rules`), `items` jsonb, `UNIQUE(user_id, week_start)`. Non contiene mai dati del ciclo.
-
-## Ciclo ⏳ (dati sanitari, art. 9 GDPR; solo maggiorenni)
-- `health_consents`: `scope` (`cycle`), `policy_version`, `granted_at`, `revoked_at`. Il client può solo leggere; scrivono `grant_cycle_consent()` e `delete_cycle_data()`.
-- `cycle_periods`: `start_date`, `end_date`.
-- `cycle_day_logs`: `log_date`, `flow` (`spotting`…`heavy`), `symptoms` (lista chiusa, come `SYMPTOMS` in `src/lib/health/cycle.ts`), `hunger` 1–5, `notes`, `UNIQUE(user_id, log_date)`.
-- Policy: proprietario **e** `has_cycle_consent()` **e** `current_user_is_adult()`.
-
-## Futuro (solo documentato)
-- `subscriptions`: stato dell'abbonamento Stripe; aggiornata dal webhook con la chiave service_role, che a sua volta aggiorna `profiles.plan`.
-- `ai_usage`: utilizzo per utente e mese, per i limiti di piano.
-- `ai_consents`: consenso separato per inviare all'AI il testo del diario e i dati del ciclo.
+- **Pulizia periodica** delle righe cancellate da più di 180 giorni (pg_cron), abbassando anche `row_totals` (lo spazio si aggiorna da solo).
+- **Cancellazione dell'account** dall'app (obbligatoria per l'App Store): tutto sparisce a cascata.
+- **Cibo condiviso (fase C):** gli alimenti del database comune non sono dati personali e potranno stare in chiaro, senza collegamento a chi li ha creati.
+- **Portachiavi su iPhone:** la chiave del dispositivo potrà passare al Portachiavi (anche sincronizzato con iCloud, così un nuovo iPhone non chiede il codice).

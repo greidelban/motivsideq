@@ -1,12 +1,12 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // Copia di sicurezza dei dati locali in un file JSON (export) e ripristino
 // (import). Indipendente da dove stanno i dati: lavora sui valori degli store.
 
-export const BACKUP_APP = "getcontrol";
+const BACKUP_APP = "getcontrol";
 /** Nome dell'app nei file esportati prima del cambio di nome: si importano ancora. */
 const LEGACY_BACKUP_APPS = ["ritmo"] as const;
-export const BACKUP_FORMAT = 1;
+const BACKUP_FORMAT = 1;
 
 export type BackupFile = {
   app: typeof BACKUP_APP;
@@ -17,8 +17,8 @@ export type BackupFile = {
 
 /** Uno store da includere: elenchi uniti per chiave, documenti sostituiti. */
 export type BackupEntry =
-  | { name: string; kind: "list"; item: z.ZodType; keyOf: (item: never) => string }
-  | { name: string; kind: "doc"; schema: z.ZodType };
+  | { name: string; kind: "list"; item: z.core.$ZodType; keyOf: (item: never) => string }
+  | { name: string; kind: "doc"; schema: z.core.$ZodType };
 
 const fileSchema = z.object({
   app: z.enum([BACKUP_APP, ...LEGACY_BACKUP_APPS]),
@@ -83,7 +83,7 @@ export function planImport(entries: readonly BackupEntry[], file: BackupFile, re
     const incoming = file.data[entry.name];
 
     if (entry.kind === "doc") {
-      const parsed = entry.schema.safeParse(incoming);
+      const parsed = z.safeParse(entry.schema, incoming);
       if (parsed.success) {
         plan.writes.push({ name: entry.name, value: parsed.data });
         plan.counts[entry.name] = 1;
@@ -97,7 +97,7 @@ export function planImport(entries: readonly BackupEntry[], file: BackupFile, re
     if (!Array.isArray(incoming)) plan.skipped++;
     const valid: unknown[] = [];
     for (const item of items) {
-      const parsed = entry.item.safeParse(item);
+      const parsed = z.safeParse(entry.item, item);
       if (parsed.success) valid.push(parsed.data);
       else plan.skipped++;
     }

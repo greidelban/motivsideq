@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WakeUpCard } from "@/components/brain/WakeUpCard";
+import { IconChevronRight } from "@/components/icons";
 import { TodayHeader } from "@/components/TodayHeader";
 import { Panel } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -25,9 +26,13 @@ export default async function TodayPage() {
         <WakeUpCard hideWhenDone />
         {SECTIONS.map(({ href, key }) => (
           <Link key={href} href={href} className="block">
-            <Panel className="transition-transform duration-150 active:scale-[0.99]">
-              <h2 className="text-headline font-semibold">{dict.today.sections[key].title}</h2>
-              <p className="mt-1 text-subhead text-muted">{dict.today.sections[key].text}</p>
+            {/* La freccia dice che la scheda si apre (come nelle liste di iOS). */}
+            <Panel className="flex items-center gap-3 transition-transform duration-150 active:scale-[0.99]">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-headline font-semibold">{dict.today.sections[key].title}</h2>
+                <p className="mt-1 text-subhead text-muted">{dict.today.sections[key].text}</p>
+              </div>
+              <IconChevronRight width={20} height={20} className="shrink-0 text-muted" />
             </Panel>
           </Link>
         ))}

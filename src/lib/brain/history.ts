@@ -1,19 +1,22 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { streak } from "@/lib/dates";
 import { GAME_IDS, GAMES, type GameId, LEGACY_GAME_IDS } from "./games";
 import { type Comparison, bestOf, compareToBaseline, isPersonalBest } from "./stats";
 
 export const brainResultSchema = z.object({
-  id: z.string().max(64),
+  id: z.string().check(z.maxLength(64)),
   // I risultati salvati con i nomi italiani della prima versione vengono convertiti.
-  game: z.preprocess((v) => (typeof v === "string" && Object.hasOwn(LEGACY_GAME_IDS, v) ? LEGACY_GAME_IDS[v] : v), z.enum(GAME_IDS)),
+  game: z.pipe(
+    z.transform((v: unknown) => (typeof v === "string" && Object.hasOwn(LEGACY_GAME_IDS, v) ? LEGACY_GAME_IDS[v] : v)),
+    z.enum(GAME_IDS),
+  ),
   /** Impostazioni della prova (es. "classic-60"): si confrontano solo prove uguali. */
-  variant: z.string().max(40),
-  at: z.string().max(40),
+  variant: z.string().check(z.maxLength(40)),
+  at: z.string().check(z.maxLength(40)),
   /** Giorno locale AAAA-MM-GG. */
-  day: z.string().max(10),
-  score: z.number().finite(),
-  metrics: z.record(z.string().max(30), z.number().finite()),
+  day: z.string().check(z.maxLength(10)),
+  score: z.number(),
+  metrics: z.record(z.string().check(z.maxLength(30)), z.number()),
   routine: z.boolean(),
 });
 

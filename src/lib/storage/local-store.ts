@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { z } from "zod";
+import * as z from "zod/mini";
 
 // Salvataggio locale (localStorage) finché non c'è il backend.
 // Ogni "store" ha una chiave, uno schema zod e un valore iniziale: i dati letti
@@ -14,14 +14,14 @@ const CHANGE_EVENT = "ritmo:store-change";
 export type LocalStore<T> = {
   key: string;
   /** Schema del valore intero (usato anche da export e import). */
-  schema: z.ZodType<T>;
+  schema: z.core.$ZodType<T>;
   get(): T;
   set(next: T | ((prev: T) => T)): void;
   clear(): void;
   use(): T;
 };
 
-export function defineStore<T>(key: string, schema: z.ZodType<T>, fallback: T): LocalStore<T> {
+export function defineStore<T>(key: string, schema: z.core.$ZodType<T>, fallback: T): LocalStore<T> {
   const storageKey = PREFIX + key;
   // Cache per restituire sempre lo stesso oggetto finché il dato non cambia
   // (useSyncExternalStore lo richiede).
@@ -41,7 +41,7 @@ export function defineStore<T>(key: string, schema: z.ZodType<T>, fallback: T): 
       cachedValue = fallback;
     } else {
       try {
-        const parsed = schema.safeParse(JSON.parse(raw));
+        const parsed = z.safeParse(schema, JSON.parse(raw));
         cachedValue = parsed.success ? parsed.data : fallback;
       } catch {
         cachedValue = fallback;

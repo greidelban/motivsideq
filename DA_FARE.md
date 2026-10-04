@@ -2,12 +2,28 @@
 
 Fase 2 (piano approvato): A1 dati pronti al cloud ✅ → E ciclo solo per le donne ✅ → **A2 Supabase** → check-in giornaliero → B ciclo → D allenamento → C alimentazione.
 
+## 0. Revisione dell'app (4/10/2026, un punto alla volta)
+- [x] 1. Sicurezza: database, account, sincronizzazione, intestazioni; poi cifratura end-to-end (sezione 1).
+- [x] 2. Pulizia: tolti `archivio/login` e `recharts`, codice morto, documentazione e informativa allineate.
+- [x] 3. Interfaccia in formato telefono (375 e 320 px, inglese e italiano) e accessibilità:
+  - vetro che scurisce lo sfondo invece di schiarirlo; schede con testo sempre su vetro elevato; etichette sopra lo sfondo con velo scuro: contrasto ≥ 4.5 misurato anche al centro del fascio di luce;
+  - aree di tocco di almeno 44 px (chip, linguette, frecce, link-pulsante);
+  - freccetta sulle schede toccabili di Oggi; barra dello spazio locale visibile;
+  - controllati: niente pagine più larghe dello schermo, nomi accessibili, etichette dei campi, titoli, id unici.
+  - [x] Ciclo controllato con un profilo di prova (consenso, stato, calendario, sintomi).
+  - [ ] Da rivedere quando ci sono: Diario (oggi segnaposto), schermate durante il gioco e dei risultati con dati veri.
+- [x] 4. Velocità, stabilità, offline:
+  - JavaScript di Oggi da 1.197 a 616 kB: zod nella versione leggera (da 391 a 72 kB), Supabase caricato solo con un account (−243 kB per chi non lo usa);
+  - pagine di errore e 404 nello stile dell'app; avviso quando il dispositivo non riesce a salvare;
+  - offline: schermate principali pronte anche senza rete (provato spegnendo il server: Allenamento, Mente, salvataggio di un allenamento);
+  - cancellare i dati del ciclo ora arriva anche al cloud e agli altri dispositivi (prima restavano nel cloud cifrato); i segnali di cancellazione spariscono dal telefono dopo l'invio.
+
 ## 1. Account e backend (Supabase): fase A2
 Progetto Supabase `idghdzlznxhqlpaqdmfy` (Central EU, Frankfurt). Chiavi in `.env.local` (escluso da git): l'app usa la chiave **publishable**.
-Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`). Il vecchio codice in `archivio/login/` (cookie lato server, testi in italiano) non serve più.
+Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`).
 - [x] Progetto Supabase gratuito creato (regione **Central EU (Frankfurt)**).
-- [x] URL e chiavi in `.env.local` (modello: `archivio/login/.env.example`).
-- [ ] **Sicurezza: la chiave `service_role` è stata incollata in chat il 4/10/2026.** Sostituirla:
+- [x] URL e chiavi in `.env.local` (modello: `.env.example`).
+- [ ] **Sicurezza: la chiave `service_role` è stata incollata in chat il 4/10/2026.** L'utente ha scelto di tenerla per ora e cambiarla più avanti (al più tardi prima del lancio). Sostituirla:
   - *Project Settings → API Keys*: creare una chiave **secret** (`sb_secret_…`) e metterla in `.env.local` al posto di `SUPABASE_SERVICE_ROLE_KEY`;
   - poi *Legacy API keys → Disable* (disattiva le vecchie anon e service_role). L'app non ne risente: usa la publishable.
 - [x] Schema v2 trasformato in migrazioni (`supabase/migrations/`, 5 file).
@@ -21,53 +37,41 @@ Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client
 - [ ] Provare registrazione e accesso con un'email vera (dopo aver impostato URL e template qui sopra).
 - [ ] Accesso con Google e con Apple **al lancio** (vedi sezione 4: pulsanti nativi nell'app iOS).
 - [ ] SMTP proprio (Resend o Brevo, piano gratuito): quello integrato manda poche email all'ora.
-- [ ] Eseguire nello SQL Editor la migrazione `20261004130000_upsert_grants.sql` (permessi per l'invio dal telefono): `npm run db:bundle -- 20261004130000` la mette da sola in `supabase/setup-completo.sql`.
-- [x] **Motore di sincronizzazione** (`src/lib/sync/`): invio in blocchi + download incrementale, vince la modifica più recente, ripresa dopo errori di rete, limite giornaliero, riallineamento dopo 180 giorni, protezione contro dati di un altro account. 8 test con un finto server (`engine.test.ts`). Stato nella pagina Account.
-- [x] **Supabase sul PC** (Docker Desktop): `npm run db:local` lo avvia con le stesse migrazioni, `npm run dev:local-db` apre l'app collegata a lui, `npm run test:e2e` prova la sincronizzazione con account finti (5 prove: primo accesso, due telefoni, conflitti, separazione tra account, limite giornaliero). Provato anche dalle schermate: registrazione e allenamento arrivato da solo nel database.
-- [ ] Estendere la sincronizzazione alle altre tabelle:
-  - [x] peso, Mente, allenamenti (`src/lib/sync/tables.ts`);
-  - [ ] pasti, profilo, check-in/diario, ciclo (consenso con `grant_cycle_consent`, cancellazione con `delete_cycle_data`);
-  - [ ] indicatore discreto anche fuori dalla pagina Account (es. in Oggi), solo quando qualcosa non va;
-  - invio in blocchi con "upsert", poi download di ciò che è cambiato (`server_updated_at`, con un minuto di sovrapposizione);
-  - indicatore di stato discreto (sincronizzato / in coda / offline);
-  - limite giornaliero raggiunto (codice `RL001`): i dati restano in coda, messaggio comprensibile, nuovo tentativo il giorno dopo;
-  - telefono offline da più di 180 giorni: **prima** invia le modifiche locali, **poi** riscarica tutto; messaggio chiaro all'utente; test dedicato;
-  - consenso al ciclo e cancellazione totale (`cycle-wiped-at`) si inviano con le funzioni del database, non come righe.
-- [ ] **Primo accesso:** caricare i dati già sul telefono senza duplicarli né perderli (gli id sono già UUID), con test.
-- [ ] Pulizia mensile delle righe cancellate da più di 180 giorni (pg_cron), anche sul telefono dopo l'invio.
-- [x] Test dello schema in Vitest sulle migrazioni vere (`src/lib/storage/schema.test.ts`, PGlite).
+- [x] Migrazioni 0006–0008 eseguite online il 4/10/2026 (verificato dall'esterno: `row_totals` esiste).
+- [x] **Eseguita online (4/10/2026) la migrazione `20261005090000_e2e_vault.sql`** (cifratura end-to-end): `npm run db:bundle -- 20261005090000`, poi incollare `supabase/setup-completo.sql` nello SQL Editor. Toglie le tabelle in chiaro (c'erano solo dati di prova). **Prima di usare il cloud online.**
+- [ ] Per provare il cloud con il proprio account prima degli acquisti in-app: nello SQL Editor `update public.profiles set plan = 'pro' where id = '<il tuo id>';` (l'id è in *Authentication → Users*).
+- [x] **Cifratura end-to-end** (decisa il 4/10/2026: il gestore non deve poter leggere nulla): chiave dati sul dispositivo, codice di recupero, una sola tabella cifrata `vault_records` (`src/lib/crypto/`, `docs/SCHEMA.md`). Provata con test (cifratura, motore, schema, 6 prove sul Supabase del PC) e dalle schermate: attivazione, codice, nuovo dispositivo, codice sbagliato, nuovo codice.
+- [x] **Motore di sincronizzazione** (`src/lib/sync/`): tutti gli elenchi con `sync: true`, cifrati; invio in blocchi + download incrementale, vince la modifica più recente, ripresa dopo errori di rete, limite giornaliero, riallineamento dopo 180 giorni, protezione contro dati di un altro account o di un'altra chiave. Il primo collegamento di un dispositivo carica tutto ciò che c'è già (senza doppioni).
+- [x] **Supabase sul PC** (Docker Desktop): `npm run db:local`, `npm run dev:local-db`, `npm run test:e2e`.
+- [ ] Indicatore discreto dello stato del cloud anche fuori dalla pagina Account (es. in Oggi), solo quando qualcosa non va (codice da inserire, spazio pieno, abbonamento scaduto).
+- [ ] **Abbonamento:** acquisti in-app (App Store / Google Play) che aggiornano `profiles.plan` dal server; finché non ci sono, il cloud si prova solo mettendo `pro` a mano.
+- [ ] Nell'app per iPhone: chiave del dispositivo nel Portachiavi (sincronizzato con iCloud: un nuovo iPhone non chiede il codice).
+- [ ] Pulizia mensile delle righe cancellate da più di 180 giorni (pg_cron), anche sul telefono dopo l'invio. **Prima del lancio:** l'informativa promette che le righe cancellate spariscono del tutto. Abbassare anche `row_totals`.
+- [x] Test dello schema in Vitest sulle migrazioni vere (`src/lib/storage/schema.test.ts`, PGlite), compreso il divieto di colonne con dati in chiaro.
 - [ ] Blocco app facoltativo (PIN o biometria con WebAuthn) per diario e ciclo.
-- [ ] Ricordarsi che il piano gratuito mette in pausa il progetto dopo 7 giorni senza attività.
+- [ ] Ricordarsi che il piano gratuito di Supabase mette in pausa il progetto dopo 7 giorni senza attività.
+- [x] Revisione di sicurezza del 4/10/2026:
+  - [x] id per utente (migrazione 0007) e codice tolto dall'indirizzo di /auth/confirm;
+  - [x] "Esci e togli i dati da questo dispositivo" (pagina Account): prima un ultimo invio, poi avvisa se qualcosa esiste solo sul telefono; toglie anche la chiave;
+  - [x] tetti di righe e di spazio per utente (errore `RL002`, messaggio nella pagina Account);
+  - [ ] per lo scanner dei codici a barre sul web servirà togliere `camera=()` da `Permissions-Policy` (`next.config.ts`).
+- [x] Spazio locale: indicatore nelle Impostazioni (tetto 1 GB, `src/lib/storage/quota.ts`). Da far rispettare quando arriveranno le foto.
 
-## 1b. Schema v2 (sincronizzazione, ciclo solo per le donne, Salute)
-Approvato e trasformato nelle migrazioni di `supabase/migrations/`, provate a ogni `npm test` su un Postgres in memoria (31 controlli).
-- [x] Approvare la proposta.
-- [x] `profiles` e `body_weights` riscritti nella core; il resto diviso in migrazioni nuove.
-
-Decisioni principali:
-- **ID e sincronizzazione:** UUID generati sul telefono; `created_at`, `updated_at` (ora del telefono, decide i conflitti: vince la modifica più recente), `deleted_at` (cancellazione morbida), `server_updated_at` (solo server, per scaricare le novità).
-- **Righe "una al giorno"** (peso, check-in/diario, registro del ciclo): chiave (utente, giorno) invece dell'id, così due telefoni offline non creano doppioni.
-- **Giorni** calcolati sul telefono nel fuso dell'utente: nessuna colonna giorno usa `current_date` del server (UTC).
-- **Unità** sempre metriche; `profiles.weight_unit` (kg/lb) è solo una preferenza dell'interfaccia.
-- **Ciclo:** accesso solo con sesso donna + maggiorenne + `cycle_tracking_enabled` + consenso attivo sulla versione corrente dell'informativa (`can_use_cycle()`). Cambiare sesso spegne la sezione senza cancellare i dati; `delete_cycle_data()` cancella tutto davvero e impedisce che righe vecchie tornino da un telefono offline.
-- **Data di nascita** correggibile: le regole per i minorenni si ricalcolano a ogni scrittura ("dimagrire" diventa "mantenere", niente obiettivo calorico).
-- **Rapporti, protezione e pillola** non sono nello schema: restano solo sul telefono.
-- **Sicurezza:** niente DELETE dal client; colonne protette (`plan`, consensi, stato del ciclo); limiti giornalieri di scrittura con un contatore che conta solo le righe davvero nuove (un invio ritentato non lo consuma due volte); errore `RL001` quando il limite è raggiunto.
-- **Diario:** pronto per la cifratura facoltativa del solo testo (`content_encryption`), non implementata.
-- **Export:** `export_my_data()` in JSON (il CSV si genera nell'app).
+## 1b. Schema
+Riassunto in `docs/SCHEMA.md`. Lo schema v2 con tabelle in chiaro (peso, profilo, ciclo, diario…) è stato sostituito il 4/10/2026 dal caveau cifrato; le sue regole su età e Ciclo ora valgono solo nell'app.
 
 ## 2. Privacy e aspetti legali
 - [ ] Compilare titolare e contatto in `src/app/privacy/page.tsx` (ora sono segnaposto `[...]`).
-- [ ] Con gli account: passare all'informativa completa in `archivio/login/src/app/privacy/page.tsx` e aggiornarla con i moduli nuovi.
+- [x] Informativa aggiornata con account, abbonamento e cifratura end-to-end (4/10/2026). Da aggiornare a ogni dato che il gestore può vedere.
 - [ ] Far rivedere informativa, disclaimer e consenso per i dati del ciclo (art. 9 GDPR) da un consulente privacy prima del lancio pubblico.
 - [ ] Verificare le regole per i minori di 14-17 anni (consenso digitale in Italia: 14 anni).
 
 ## 3. Account: funzioni da completare
 - [x] Export e import JSON in locale (Impostazioni → Copia di sicurezza).
-- [ ] Export anche in CSV e dal server (`export_my_data()`).
-- [ ] Cancellazione account (route server con `service_role`, tutto a cascata).
+- [ ] Export anche in CSV (dall'app: il server non può leggere i dati).
+- [ ] Cancellazione account dall'app (obbligatoria per l'App Store): funzione sul server con la chiave secret, tutto sparisce a cascata.
 - [ ] Rate limit sulla creazione di alimenti e voti (già previsto via trigger nello schema).
-- [ ] Test automatici delle regole RLS (un utente non deve vedere i dati di un altro).
+- [x] Test automatici delle regole RLS (un utente non vede né tocca i dati di un altro): `schema.test.ts` e `sync.e2e.ts`.
 
 ## 4. Pubblicazione
 **Lancio: App Store di Apple, e se possibile Google Play in contemporanea** (deciso il 4/10/2026); web dopo. Stesso codice per entrambi (Capacitor).

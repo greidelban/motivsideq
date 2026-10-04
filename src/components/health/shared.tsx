@@ -27,7 +27,7 @@ export function DeleteButton({ label, onClick }: { label: string; onClick: () =>
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="grid size-10 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-[var(--control-bg)] hover:text-error"
+      className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-[var(--control-bg)] hover:text-error"
     >
       <IconTrash width={18} height={18} />
     </button>

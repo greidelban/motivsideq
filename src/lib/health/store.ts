@@ -3,6 +3,7 @@
 import { localDateKey } from "@/lib/dates";
 import { localDb } from "@/lib/storage/db";
 import { DEFS } from "@/lib/storage/definitions";
+import { isCloudLinked } from "@/lib/sync/run";
 import { type FoodEntry, MAX_STORED_FOOD } from "./food";
 import { MAX_STORED_WORKOUTS, type Workout } from "./workouts";
 
@@ -13,7 +14,6 @@ export const foodEntries = localDb.store(DEFS.foodEntries);
 export const cycleConsent = localDb.store(DEFS.cycleConsent);
 export const cyclePeriods = localDb.store(DEFS.cyclePeriods);
 export const cycleDayLogs = localDb.store(DEFS.cycleDayLogs);
-const cycleWipedAt = localDb.store(DEFS.cycleWipedAt);
 
 /** Crea id, ora e giorno locale per un nuovo elemento. */
 function stamp() {
@@ -36,13 +36,20 @@ export function addFood(input: Omit<FoodEntry, "id" | "at" | "day">, day?: strin
 }
 
 /**
- * Revoca il consenso e cancella davvero tutti i dati del ciclo da questo
- * dispositivo (nessun segnale di cancellazione resta). L'ora della
- * cancellazione si ricorda per chiedere la stessa cosa al server, con l'account.
+ * Revoca il consenso e cancella davvero tutti i dati del ciclo.
+ * Senza cloud: spariscono subito dal dispositivo, senza lasciare traccia.
+ * Con il cloud: diventano segnali di cancellazione vuoti (senza valori), così
+ * spariscono anche dal cloud e dagli altri dispositivi; dopo l'invio la
+ * sincronizzazione toglie anche i segnali da qui (engine.ts).
  */
 export function deleteCycleData() {
-  cyclePeriods.purge();
-  cycleDayLogs.purge();
-  cycleConsent.purge();
-  cycleWipedAt.set(new Date().toISOString());
+  if (isCloudLinked()) {
+    cyclePeriods.clear();
+    cycleDayLogs.clear();
+    cycleConsent.clear();
+  } else {
+    cyclePeriods.purge();
+    cycleDayLogs.purge();
+    cycleConsent.purge();
+  }
 }

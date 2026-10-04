@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isLocale, matchLocale } from "./config";
 import { en } from "./dictionaries/en";
 import { it as itDict } from "./dictionaries/it";
-import { formatDuration, formatNumber, interpolate, plural } from "./format";
+import { formatBytes, formatDuration, formatNumber, interpolate, plural } from "./format";
 
 describe("matchLocale", () => {
   it("usa la prima lingua supportata in ordine di preferenza", () => {
@@ -47,6 +47,13 @@ describe("format", () => {
     expect(formatDuration("en", 850.4)).toBe("850 ms");
     expect(formatDuration("en", 1430)).toBe("1.4 s");
     expect(formatDuration("it", 1430)).toBe("1,4 s");
+  });
+
+  it("spazio in kB, MB e GB", () => {
+    expect(formatBytes("en", 850_000)).toBe("850 kB");
+    expect(formatBytes("en", 2_345_678)).toBe("2.3 MB");
+    expect(formatBytes("it", 2_345_678)).toBe("2,3 MB");
+    expect(formatBytes("en", 1e9)).toBe("1 GB");
   });
 });
 

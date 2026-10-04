@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // Configurazione pubblica di Supabase. Le variabili NEXT_PUBLIC_* vanno lette per
 // nome esatto, altrimenti Next non le inserisce nel bundle del browser.
@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const schema = z.object({
   url: z.url(),
-  anonKey: z.string().min(20),
+  anonKey: z.string().check(z.minLength(20)),
   siteUrl: z.url(),
 });
 

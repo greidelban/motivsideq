@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Field, FormMessage, Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
 import { interpolate, plural } from "@/i18n/format";
@@ -16,17 +16,23 @@ import {
   signUpSchema,
 } from "@/lib/auth/validation";
 import { supabaseConfig } from "@/lib/supabase/config";
-import { accountAvailable, getSupabase, useSession } from "@/lib/supabase/client";
-import { adoptLocalData, requestSync, useSyncStatus } from "@/lib/sync/run";
+import { accountAvailable, loadSupabase, useSession } from "@/lib/supabase/client";
+import { prepareDeviceWipe, signOutAndWipe } from "@/lib/sync/run";
+import { VaultPanel } from "./VaultPanel";
 
 type Mode = "signIn" | "signUp" | "forgot";
 type Result = { tone: "error" | "success"; text: string } | null;
 
-// Account facoltativo: serve solo a salvare i dati anche nel cloud.
-// Tutto avviene nel browser con la chiave pubblica; i permessi li decide la RLS.
+// Account facoltativo: serve solo al cloud cifrato (con l'abbonamento).
+// Tutto avviene nel browser con la chiave pubblica; i permessi li decide la RLS,
+// e i dati arrivano al server già cifrati (src/lib/crypto/vault.ts).
 export function AccountView() {
   const { dict } = useI18n();
   const session = useSession();
+  // Qui l'account serve: la libreria si prepara subito, così accedere è immediato.
+  useEffect(() => {
+    void loadSupabase();
+  }, []);
   if (!accountAvailable()) {
     return (
       <Panel>
@@ -44,7 +50,7 @@ function SignedIn({ email }: { email: string }) {
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-4">
-      <SyncPanel />
+      <VaultPanel />
       <Panel>
         <p className="text-subhead text-ink-2">{interpolate(t.signedInAs, { email })}</p>
         <button
@@ -54,56 +60,72 @@ function SignedIn({ email }: { email: string }) {
           onClick={async () => {
             setBusy(true);
             // Esce solo da questo dispositivo; i dati locali restano.
-            await getSupabase()?.auth.signOut({ scope: "local" });
+            await (await loadSupabase())?.auth.signOut({ scope: "local" });
             setBusy(false);
           }}
         >
           {t.signOut}
         </button>
+        <WipeDevice />
       </Panel>
     </div>
   );
 }
 
-/** Stato della sincronizzazione, in parole semplici. */
-function SyncPanel() {
-  const { locale, dict } = useI18n();
-  const t = dict.settings.account.sync;
-  const s = useSyncStatus();
-  const time = s.lastSyncAt ? new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(new Date(s.lastSyncAt)) : null;
-  const message = s.running
-    ? t.running
-    : s.outcome === "offline" || s.outcome === "limit" || s.outcome === "auth" || s.outcome === "error" || s.outcome === "otherAccount"
-      ? t[s.outcome]
-      : time
-        ? interpolate(t.synced, { time })
-        : t.never;
-  const warn = !s.running && s.outcome !== null && s.outcome !== "synced";
+type WipeStep = "idle" | "confirm" | "checking" | "wiping" | { unsynced: number };
 
+/** "Esci e togli i dati": prima un ultimo invio, poi avvisa se qualcosa andrebbe perso. */
+function WipeDevice() {
+  const { locale, dict } = useI18n();
+  const t = dict.settings.account.wipe;
+  const [step, setStep] = useState<WipeStep>("idle");
+  const busy = step === "checking" || step === "wiping";
+
+  async function wipe() {
+    setStep("wiping");
+    await signOutAndWipe();
+  }
+
+  async function confirm() {
+    if (typeof step === "object") return wipe();
+    setStep("checking");
+    const unsynced = await prepareDeviceWipe();
+    if (unsynced > 0) setStep({ unsynced });
+    else await wipe();
+  }
+
+  if (step === "idle") {
+    return (
+      <button type="button" className="link mt-4 flex min-h-11 items-center text-left text-subhead" onClick={() => setStep("confirm")}>
+        {t.open}
+      </button>
+    );
+  }
   return (
-    <Panel>
-      <h2 className="mb-2 text-headline font-semibold">{t.title}</h2>
-      <p role="status" aria-live="polite" className={`text-subhead ${warn ? "text-warning" : "text-ink-2"}`}>
-        {!warn && !s.running && time && (
-          <span className="text-success" aria-hidden="true">
-            ✓{" "}
-          </span>
-        )}
-        {message}
-      </p>
-      {s.pending > 0 && <p className="mt-1 text-footnote text-muted">{plural(locale, s.pending, t.pending)}</p>}
-      {s.fullResync && <p className="mt-2 text-footnote text-ink-2">{t.fullResync}</p>}
-      <p className="mt-2 text-footnote text-muted">{t.scope}</p>
-      {s.outcome === "otherAccount" ? (
-        <button type="button" className="btn btn-primary mt-4 w-full" onClick={adoptLocalData}>
-          {t.adopt}
-        </button>
-      ) : (
-        <button type="button" className="btn btn-ghost mt-4" disabled={s.running} onClick={() => void requestSync()}>
-          {t.now}
-        </button>
+    <div className="mt-4 space-y-3">
+      <p className="text-subhead text-ink-2">{t.explain}</p>
+      {typeof step === "object" && (
+        <>
+          <FormMessage tone="error">{plural(locale, step.unsynced, t.unsynced)}</FormMessage>
+          <Link href="/settings" className="link flex min-h-11 items-center text-subhead">
+            {t.backupFirst}
+          </Link>
+        </>
       )}
-    </Panel>
+      {step === "checking" && (
+        <p role="status" className="text-footnote text-muted">
+          {t.checking}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void confirm()}>
+          {typeof step === "object" ? t.confirmAnyway : t.confirm}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setStep("idle")}>
+          {dict.common.cancel}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -127,7 +149,7 @@ function SignedOut() {
               role="tab"
               aria-selected={mode === m}
               onClick={() => setMode(m)}
-              className={`min-h-10 flex-1 rounded-full text-subhead font-semibold transition-colors duration-150 ${
+              className={`min-h-11 flex-1 rounded-full text-subhead font-semibold transition-colors duration-150 ${
                 mode === m ? "text-ink" : "text-muted hover:text-ink-2"
               }`}
               style={mode === m ? { background: "var(--glass-lens)", boxShadow: "var(--glass-lens-edge)" } : undefined}
@@ -187,7 +209,7 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
     form.setErrors(parsed.success ? {} : fieldErrors(parsed.error));
     if (!parsed.success) return;
     void form.run(async () => {
-      const { error } = await getSupabase()!.auth.signInWithPassword(parsed.data);
+      const { error } = await (await loadSupabase())!.auth.signInWithPassword(parsed.data);
       if (error) return form.authError(authErrorKey(error.code, error.status));
     });
   }
@@ -200,7 +222,7 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       <button type="submit" className="btn btn-primary w-full" disabled={form.busy}>
         {form.busy ? t.working : t.signIn}
       </button>
-      <button type="button" className="link block text-subhead" onClick={onForgot}>
+      <button type="button" className="link flex min-h-11 items-center text-subhead" onClick={onForgot}>
         {t.forgot}
       </button>
     </form>
@@ -220,7 +242,7 @@ function SignUpForm() {
     if (!parsed.success) return;
     const { email, password } = parsed.data;
     void form.run(async () => {
-      const { error } = await getSupabase()!.auth.signUp({
+      const { error } = await (await loadSupabase())!.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: `${supabaseConfig()!.siteUrl}/auth/confirm` },
@@ -278,7 +300,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
     form.setErrors(parsed.success ? {} : fieldErrors(parsed.error));
     if (!parsed.success) return;
     void form.run(async () => {
-      const { error } = await getSupabase()!.auth.resetPasswordForEmail(parsed.data.email, {
+      const { error } = await (await loadSupabase())!.auth.resetPasswordForEmail(parsed.data.email, {
         redirectTo: `${supabaseConfig()!.siteUrl}/auth/confirm`,
       });
       if (error && (error.code === "over_email_send_rate_limit" || error.code === "over_request_rate_limit")) {
@@ -295,7 +317,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
       <button type="submit" className="btn btn-primary w-full" disabled={form.busy}>
         {form.busy ? t.working : t.sendReset}
       </button>
-      <button type="button" className="link block text-subhead" onClick={onBack}>
+      <button type="button" className="link flex min-h-11 items-center text-subhead" onClick={onBack}>
         {t.backToSignIn}
       </button>
     </form>
@@ -314,7 +336,7 @@ export function NewPasswordForm({ onDone }: { onDone: () => void }) {
     form.setErrors(parsed.success ? {} : fieldErrors(parsed.error));
     if (!parsed.success) return;
     void form.run(async () => {
-      const { error } = await getSupabase()!.auth.updateUser({ password: parsed.data.password });
+      const { error } = await (await loadSupabase())!.auth.updateUser({ password: parsed.data.password });
       if (error) return form.authError(authErrorKey(error.code, error.status));
       onDone();
     });

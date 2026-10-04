@@ -1,5 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it } from "vitest";
+import * as z from "zod/mini";
 import { type Backend, LEGACY_PREFIX, openIdbBackend } from "./backends";
 import { ALL_DEFS, DEFS } from "./definitions";
 import { createLocalDb } from "./local-db";
@@ -227,12 +228,37 @@ describe("archivio locale", () => {
   });
 
   it("i dati solo-dispositivo si cancellano davvero e non vanno in coda", async () => {
-    const db = newDb();
+    const deviceOnly = { kind: "doc", name: "solo-qui", schema: z.nullable(z.string()), fallback: null, sync: false } as const;
+    const db = createLocalDb({ defs: [...ALL_DEFS, deviceOnly], open: () => openIdbBackend(factory), legacy: null });
     await db.start();
-    const wiped = db.store(DEFS.cycleWipedAt);
-    wiped.set("2026-10-04T15:00:00.000Z");
-    expect(db.dirty("cycle-wiped-at")).toEqual([]);
-    wiped.clear();
-    expect(db.records("cycle-wiped-at")).toEqual([]);
+    const store = db.store(deviceOnly);
+    store.set("valore");
+    expect(db.dirty("solo-qui")).toEqual([]);
+    store.clear();
+    expect(db.records("solo-qui")).toEqual([]);
+  });
+
+  it("un salvataggio fallito si segnala, e l'avviso sparisce al primo salvataggio riuscito", async () => {
+    let full = false;
+    const db = newDb(async () => {
+      const real = await openIdbBackend(factory);
+      return { ...real, write: (puts, deletes) => (full ? Promise.reject(new Error("spazio pieno")) : real.write(puts, deletes)) };
+    });
+    await db.start();
+    let calls = 0;
+    db.onWriteError(() => calls++);
+    const weights = db.store(DEFS.bodyWeights);
+
+    full = true;
+    weights.set([{ day: "2026-10-04", kg: 70 }]);
+    await db.flush();
+    expect(db.lastWriteError()).toBeInstanceOf(Error);
+    expect(calls).toBe(1);
+
+    full = false;
+    weights.set([{ day: "2026-10-04", kg: 71 }]);
+    await db.flush();
+    expect(db.lastWriteError()).toBeNull();
+    expect(calls).toBe(2);
   });
 });

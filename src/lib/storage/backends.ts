@@ -1,9 +1,10 @@
+import * as z from "zod/mini";
 import { type Def, type StoredRecord, recordsFromValue, valueFromRecords } from "./records";
 
 // Dove finiscono i record. IndexedDB è quello normale; se il browser non lo
 // permette, si resta al vecchio salvataggio in localStorage (come prima).
 
-export type MetaValue = { done: true; at: string; keys: string[] };
+type MetaValue = { done: true; at: string; keys: string[] };
 
 export interface Backend {
   readonly kind: "idb" | "legacy";
@@ -175,12 +176,12 @@ export function legacyBackend(storage: Storage, defs: readonly Def[], now: () =>
  */
 export function valueFromLegacy(def: Def, raw: unknown): unknown {
   if (def.kind === "doc") {
-    const parsed = def.schema.safeParse(raw);
+    const parsed = z.safeParse(def.schema, raw);
     return parsed.success ? parsed.data : undefined;
   }
   if (!Array.isArray(raw)) return undefined;
   return raw.flatMap((item) => {
-    const parsed = def.item.safeParse(item);
+    const parsed = z.safeParse(def.item, item);
     return parsed.success ? [parsed.data] : [];
   });
 }

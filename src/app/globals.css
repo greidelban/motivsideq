@@ -48,15 +48,17 @@
   /* Vetro: tinta per ruolo (-clear solo icone, base barre/chip, -elevated con testo) */
   --glass-tint-rgb: 10 14 26;
   --glass-alpha-clear: 0.32;
-  --glass-alpha: 0.46;
-  --glass-alpha-elevated: 0.6;
+  --glass-alpha: 0.5;
+  --glass-alpha-elevated: 0.64;
   --glass-opacify: 0; /* 0..1: avvicina la tinta all'opaco (trasparenza ridotta, contrasto alto) */
   --glass-tint-clear: rgb(var(--glass-tint-rgb) / calc(var(--glass-alpha-clear) + (1 - var(--glass-alpha-clear)) * var(--glass-opacify)));
   --glass-tint: rgb(var(--glass-tint-rgb) / calc(var(--glass-alpha) + (1 - var(--glass-alpha)) * var(--glass-opacify)));
   --glass-tint-elevated: rgb(var(--glass-tint-rgb) / calc(var(--glass-alpha-elevated) + (1 - var(--glass-alpha-elevated)) * var(--glass-opacify)));
-  --glass-filter-sm: blur(6px) saturate(190%) brightness(1.12);
-  --glass-filter-md: blur(12px) saturate(180%) brightness(1.08);
-  --glass-filter-lg: blur(18px) saturate(170%) brightness(1.04);
+  /* Il vetro scurisce ciò che ha dietro (come quello scuro di iOS): sopra i fasci
+     di luce più forti il testo resta leggibile (contrasto ≥ 4.5, misurato). */
+  --glass-filter-sm: blur(6px) saturate(190%) brightness(0.9);
+  --glass-filter-md: blur(12px) saturate(180%) brightness(0.8);
+  --glass-filter-lg: blur(18px) saturate(170%) brightness(0.75);
   --glass-sheen: radial-gradient(120% 70% at 18% -12%, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.02) 45%, transparent 70%);
   --glass-light: 160deg;
   --glass-rim: linear-gradient(var(--glass-light), rgb(255 255 255 / 0.46) 0%, rgb(255 255 255 / 0.14) 18%, rgb(255 255 255 / 0.03) 42%, rgb(255 255 255 / 0.03) 62%, rgb(255 255 255 / 0.1) 88%, rgb(255 255 255 / 0.2) 100%);
@@ -356,8 +358,9 @@ body::before {
      un'ombra morbida lo tiene leggibile anche sugli sfondi più luminosi. */
   .on-backdrop {
     text-shadow:
-      0 1px 2px rgb(2 4 12 / 0.7),
-      0 2px 16px rgb(2 4 12 / 0.85);
+      0 0 3px rgb(2 4 12 / 0.9),
+      0 1px 2px rgb(2 4 12 / 0.8),
+      0 2px 16px rgb(2 4 12 / 0.9);
   }
 
   /* Etichette piccole maiuscole sopra i dati */
@@ -367,6 +370,17 @@ body::before {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+  /* Fuori dal vetro, sopra la luce, un testo così piccolo non basta con l'ombra:
+     colore secondario e un velo scuro sfumato appena dietro (contrasto ≥ 4.5 anche
+     al centro del fascio di luce, misurato). */
+  .eyebrow.on-backdrop {
+    width: fit-content;
+    margin-inline: -0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    color: var(--text-secondary);
+    background: radial-gradient(closest-side, rgb(2 4 12 / 0.55), rgb(2 4 12 / 0.35) 70%, rgb(2 4 12 / 0));
   }
 
   .link {

@@ -1,13 +1,13 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { addDays, daysBetween } from "@/lib/dates";
 
 // Ciclo mestruale: metodo del calendario, tutto calcolato sul dispositivo.
 // Le previsioni sono stime (legal.short.cycle): non è un contraccettivo.
 
-export const DEFAULT_CYCLE_LENGTH = 28;
-export const DEFAULT_PERIOD_LENGTH = 5;
+const DEFAULT_CYCLE_LENGTH = 28;
+const DEFAULT_PERIOD_LENGTH = 5;
 /** Fase luteale media: l'ovulazione cade circa 14 giorni prima del ciclo successivo. */
-export const LUTEAL_DAYS = 14;
+const LUTEAL_DAYS = 14;
 /** Cicli considerati per le medie (i più recenti). */
 const RECENT_CYCLES = 6;
 /** Durate fuori da questi limiti sono dimenticanze o errori: non entrano nelle medie. */
@@ -17,11 +17,11 @@ const PERIOD_RANGE = { min: 1, max: 15 } as const;
 const IRREGULAR_SPREAD = 9;
 
 export const periodSchema = z.object({
-  id: z.string().max(64),
+  id: z.string().check(z.maxLength(64)),
   /** Primo giorno di mestruazioni, AAAA-MM-GG. */
-  start: z.string().max(10),
+  start: z.string().check(z.maxLength(10)),
   /** Ultimo giorno, se registrato. */
-  end: z.string().max(10).optional(),
+  end: z.optional(z.string().check(z.maxLength(10))),
 });
 export type Period = z.infer<typeof periodSchema>;
 
@@ -43,21 +43,21 @@ export const FLOWS = ["spotting", "light", "medium", "heavy"] as const;
 export type Flow = (typeof FLOWS)[number];
 
 export const dayLogSchema = z.object({
-  day: z.string().max(10),
-  flow: z.enum(FLOWS).optional(),
-  symptoms: z.array(z.enum(SYMPTOMS)).max(SYMPTOMS.length),
+  day: z.string().check(z.maxLength(10)),
+  flow: z.optional(z.enum(FLOWS)),
+  symptoms: z.array(z.enum(SYMPTOMS)).check(z.maxLength(SYMPTOMS.length)),
 });
 export type DayLog = z.infer<typeof dayLogSchema>;
 
 // policyVersion manca nei consensi dati prima della versione dell'informativa:
 // valgono come da rinnovare. enabled = false: sezione in pausa (dati conservati).
-export const consentSchema = z
-  .object({
-    acceptedAt: z.string().max(40),
-    policyVersion: z.string().max(20).optional(),
-    enabled: z.boolean().default(true),
-  })
-  .nullable();
+export const consentSchema = z.nullable(
+  z.object({
+    acceptedAt: z.string().check(z.maxLength(40)),
+    policyVersion: z.optional(z.string().check(z.maxLength(20))),
+    enabled: z._default(z.boolean(), true),
+  }),
+);
 export type CycleConsent = z.infer<typeof consentSchema>;
 
 export function sortPeriods(periods: readonly Period[]): Period[] {
@@ -106,7 +106,7 @@ export function cycleStats(periods: readonly Period[]): CycleStats {
   };
 }
 
-export type CyclePhase = "menstrual" | "follicular" | "fertile" | "luteal" | "late";
+type CyclePhase = "menstrual" | "follicular" | "fertile" | "luteal" | "late";
 
 export type CycleStatus = {
   /** Giorno del ciclo, da 1 (primo giorno di mestruazioni). */

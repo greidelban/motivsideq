@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import * as z from "zod/mini";
 
 // Dati locali "pronti al cloud": ogni elemento è un record con i metadati di
 // sincronizzazione (stessi campi delle tabelle in supabase/migrations/).
@@ -8,7 +8,7 @@ import type { z } from "zod";
 export type ListDef<T> = {
   kind: "list";
   name: string;
-  item: z.ZodType<T>;
+  item: z.core.$ZodType<T>;
   keyOf(item: T): string;
   /** false = dato solo di questo dispositivo, mai inviato al cloud. */
   sync: boolean;
@@ -18,7 +18,7 @@ export type ListDef<T> = {
 export type DocDef<T> = {
   kind: "doc";
   name: string;
-  schema: z.ZodType<T>;
+  schema: z.core.$ZodType<T>;
   fallback: T;
   sync: boolean;
 };
@@ -40,7 +40,7 @@ export type StoredRecord = {
   pos: number;
 };
 
-export const DOC_KEY = "doc";
+const DOC_KEY = "doc";
 
 export type Changes = { puts: StoredRecord[]; deletes: string[] };
 
@@ -50,12 +50,12 @@ const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.s
 export function valueFromRecords(def: Def, records: Iterable<StoredRecord>): unknown {
   const live = [...records].filter((r) => r.deletedAt === null);
   if (def.kind === "doc") {
-    const parsed = live.length ? def.schema.safeParse(live[0].value) : null;
+    const parsed = live.length ? z.safeParse(def.schema, live[0].value) : null;
     return parsed?.success ? parsed.data : def.fallback;
   }
   const out: unknown[] = [];
   for (const r of live.sort((a, b) => a.pos - b.pos)) {
-    const parsed = def.item.safeParse(r.value);
+    const parsed = z.safeParse(def.item, r.value);
     if (parsed.success) out.push(parsed.data);
   }
   return out;

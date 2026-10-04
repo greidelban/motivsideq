@@ -1,6 +1,6 @@
 "use client";
 
-import type { z } from "zod";
+import type * as z from "zod/mini";
 import { brainResultSchema } from "@/lib/brain/history";
 import { brainSettings } from "@/lib/brain/settings";
 import { brainResults } from "@/lib/brain/store";
@@ -21,7 +21,7 @@ const doc = <T,>(store: LocalStore<T>): Included => ({
   store: store as unknown as LocalStore<unknown>,
 });
 
-const list = <T,>(store: LocalStore<T[]>, item: z.ZodType<T>, keyOf: (item: T) => string): Included => ({
+const list = <T,>(store: LocalStore<T[]>, item: z.core.$ZodType<T>, keyOf: (item: T) => string): Included => ({
   entry: { name: store.key, kind: "list", item, keyOf: keyOf as (item: never) => string },
   store: store as unknown as LocalStore<unknown>,
 });

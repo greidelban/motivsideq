@@ -13,7 +13,6 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     // Codice del login messo da parte (vedi DA_FARE.md).
-    "archivio/**",
   ]),
 ]);
 

@@ -7,14 +7,22 @@
   - Le chiavi si aggiungono prima in `en.ts`; TypeScript e i test (`src/i18n/i18n.test.ts`) segnalano le traduzioni mancanti.
   - Numeri e durate si formattano con `src/i18n/format.ts`.
   - URL e identificativi sono in inglese; i commenti nel codice restano in italiano.
-- **Dati: ancora niente login né backend, ma tutto è pronto per il cloud.**
+- **Dati: prima di tutto sul dispositivo; nel cloud solo cifrati (end-to-end) e solo con l'abbonamento.**
   - Dati dell'utente in IndexedDB: `localDb.store(DEFS.x)` (`src/lib/storage/db.ts`, `definitions.ts`). Stessa forma di prima (get/set/use/clear), validati con zod.
   - Ogni elemento è un record con id, `createdAt`, `updatedAt`, `deletedAt` (cancellazione morbida) e `dirty` (da inviare): i nomi seguono le migrazioni in `supabase/migrations/`.
   - Impostazioni del solo dispositivo (sfondo, animazioni, durata del calcolo) in `localStorage` con `defineStore` (`local-store.ts`).
-  - Un nuovo tipo di dato dell'utente va aggiunto in `definitions.ts` **e** in `backup-stores.ts` (un test controlla che l'export sia completo).
+  - Un nuovo tipo di dato dell'utente va aggiunto in `definitions.ts` **e** in `backup-stores.ts` (un test controlla che l'export sia completo). Con `sync: true` va nel cloud, cifrato, senza altro lavoro.
+  - Spazio locale: al massimo 1 GB (`src/lib/storage/quota.ts`, deciso con l'utente: tetto 5 GB); servirà a fermare i file grandi quando arriveranno le foto.
   - Le schermate che leggono dati dell'utente aspettano `useLocalData()` prima di mostrarli.
   - I giorni ("AAAA-MM-GG") si calcolano sempre sul telefono nel fuso dell'utente; i pesi si salvano in kg (kg/lb solo nell'interfaccia, `src/lib/units.ts`).
-- **Account (facoltativo):** progetto Supabase in UE, chiavi in `.env.local` (mai su git, mai in chat). Il login avviene nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`): niente sessioni lato server. Senza configurazione l'account non compare. `archivio/login/` è il vecchio login (cookie lato server), non più usato.
+- **Account (facoltativo):** progetto Supabase in UE, chiavi in `.env.local` (modello `.env.example`; mai su git, mai in chat). Il login avviene nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`): niente sessioni lato server. Senza configurazione l'account non compare.
+- **Cifratura end-to-end (decisa dall'utente il 4/10/2026: il gestore deve poter leggere ZERO dati degli utenti):**
+  - una chiave dati casuale nasce sul primo dispositivo; al server arriva solo impacchettata con il **codice di recupero** (32 caratteri, solo l'utente lo conosce); ogni dispositivo la tiene in IndexedDB (`src/lib/crypto/`);
+  - nel database c'è una sola tabella di dati, `vault_records`: id casuali (HMAC), testo cifrato (AES-GCM), date di modifica. Niente tipi di dato, giorni, nomi o numeri in chiaro; `profiles` ha solo il piano;
+  - leggibili per il gestore: email e date di accesso (Supabase Auth), piano, quantità e date delle righe. Un test (`schema.test.ts`) vieta colonne nuove con dati in chiaro;
+  - codice perso e nessun dispositivo collegato = dati nel cloud persi ("ricomincia da zero"); nessuno può recuperarli;
+  - il cloud richiede `plan = 'pro'` (controllato dal database); senza abbonamento tutto resta sul dispositivo;
+  - le regole su età, minorenni e Ciclo valgono solo nell'app: il server non conosce sesso né data di nascita.
 - Il database: migrazioni in `supabase/migrations/`, si applicano incollando `npm run db:bundle` → `supabase/setup-completo.sql` nello SQL Editor. Ogni nuova migrazione va provata in `src/lib/storage/schema.test.ts`.
 - Priorità: migliorare e perfezionare l'app.
 - Ordine dei moduli:
@@ -26,8 +34,13 @@
   - ciclo: metodo del calendario, solo maggiorenni, consenso con la versione dell'informativa (`CYCLE_POLICY_VERSION`), dati cancellabili davvero;
   - il Ciclo esiste solo se `canUseCycle(profile, consent)` (`src/lib/health/cycle-access.ts`) non dice "hidden", cioè con sesso femmina: menu, schermate, schede e insight passano tutti da lì;
   - se il sesso cambia da femmina si chiede se conservare (in pausa) o cancellare i dati: mai cancellarli da soli;
-  - lo schema del database è in `supabase/migrations/` (riassunto in `DA_FARE.md`, sezione 1b), provato da `src/lib/storage/schema.test.ts` su un Postgres in memoria (PGlite).
+  - nel cloud i dati della salute viaggiano cifrati come tutto il resto (vedi sopra); riassunto dello schema in `docs/SCHEMA.md`.
 - **Chat in incognito** (`/chat`, tasto a sinistra delle Impostazioni in Oggi, icona: fumetto tratteggiato): solo la schermata, senza motore (vedi i divieti sotto). Ha un lucchetto finché il piano non la include (`chat: ["pro"]` in `src/lib/entitlements.ts`).
+- **Velocità e offline** (punto 4 della revisione, 4/10/2026):
+  - zod solo nella versione leggera: `import * as z from "zod/mini"` (con `import { z } from "zod"` o `{ z }` il pacchetto torna da 72 a 390 kB); per gli schemi generici `z.core.$ZodType` e `z.safeParse(schema, valore)`;
+  - Supabase si carica solo quando serve: `loadSupabase()` / `whenSupabaseLoaded()` (`src/lib/supabase/client.ts`), mai importare `@supabase/supabase-js` come valore altrove;
+  - `public/sw.js` conserva pagine e file dell'app per l'uso offline (mai dati dell'utente né altri siti): una schermata nuova va aggiunta a `ROUTES`; cambiando la logica, alzare `VERSION`;
+  - pagine di errore: `src/app/error.tsx`, `global-error.tsx`, `not-found.tsx`; un salvataggio locale fallito si segnala con `SaveErrorBanner`.
 - Alla fine di ogni modulo:
   - test Vitest della logica di calcolo;
   - `npm run typecheck`, `npm run lint`, `npm run build`;
@@ -35,12 +48,12 @@
 - Decisioni prese con l'utente:
   - età minima 14 anni (mese e anno di nascita);
   - dai 14 ai 17 anni niente obiettivo "dimagrire" né obiettivo calorico; ciclo solo da maggiorenni;
-  - la data di nascita si può correggere: le regole per i minorenni si ricalcolano sempre dalla data attuale (app e database);
+  - la data di nascita si può correggere: le regole per i minorenni si ricalcolano sempre dalla data attuale (nell'app: il server non la conosce);
   - umore, energia, fame e sonno hanno una sola fonte: il check-in giornaliero (lo usano diario, ciclo e insight);
   - rapporti, protezione e pillola restano solo sul telefono e non si sincronizzano (servirebbe un consenso a parte);
   - soglie minime delle calorie: 1500 uomini, 1200 donne;
   - tolleranza delle kcal sugli alimenti: 20% o 10 kcal;
-  - niente cifratura end-to-end per ora (lo schema è pronto per farla solo sul testo del diario);
+  - cifratura end-to-end di tutti i dati nel cloud (vedi sopra; prima era esclusa);
   - codice a barre: prima solo il nostro database; Open Food Facts più avanti solo per precompilare, citando la fonte (la regola qui sotto si cambia allora);
   - foto dei progressi solo sul telefono, compresse, mai nel cloud (priorità bassa);
   - accesso al lancio con email, Apple e Google (pulsanti nativi su iOS); primo lancio sull'App Store, senza Mac: build con Codemagic;

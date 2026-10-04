@@ -1,32 +1,32 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // Regole dei campi di accesso. I messaggi sono chiavi dei dizionari
 // (settings.account.errors): i componenti li traducono.
 
 export type AuthFieldError = "email" | "passwordShort" | "passwordLong" | "passwordMissing" | "passwordMismatch";
 
-const email = z.string().trim().toLowerCase().max(254).pipe(z.email("email"));
+const email = z.pipe(z.string().check(z.trim(), z.toLowerCase(), z.maxLength(254, "email")), z.email("email"));
 
 // 72 è il limite di bcrypt usato da Supabase Auth.
-const password = z.string().min(8, "passwordShort").max(72, "passwordLong");
+const password = z.string().check(z.minLength(8, "passwordShort"), z.maxLength(72, "passwordLong"));
 
 export const signInSchema = z.object({
   email,
-  password: z.string().min(1, "passwordMissing").max(72, "passwordLong"),
+  password: z.string().check(z.minLength(1, "passwordMissing"), z.maxLength(72, "passwordLong")),
 });
 
 export const signUpSchema = z
   .object({ email, password, passwordConfirm: z.string() })
-  .refine((v) => v.password === v.passwordConfirm, { path: ["passwordConfirm"], message: "passwordMismatch" });
+  .check(z.refine((v) => v.password === v.passwordConfirm, { path: ["passwordConfirm"], message: "passwordMismatch" }));
 
 export const emailOnlySchema = z.object({ email });
 
 export const newPasswordSchema = z
   .object({ password, passwordConfirm: z.string() })
-  .refine((v) => v.password === v.passwordConfirm, { path: ["passwordConfirm"], message: "passwordMismatch" });
+  .check(z.refine((v) => v.password === v.passwordConfirm, { path: ["passwordConfirm"], message: "passwordMismatch" }));
 
 /** Primo errore per ciascun campo, come chiave del dizionario. */
-export function fieldErrors(error: z.ZodError): Partial<Record<string, AuthFieldError>> {
+export function fieldErrors(error: z.core.$ZodError): Partial<Record<string, AuthFieldError>> {
   const out: Partial<Record<string, AuthFieldError>> = {};
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? "");

@@ -19,7 +19,7 @@ export default async function MindPage() {
       <PageHeader eyebrow={dict.mind.eyebrow} title={dict.mind.title} />
       <div className="space-y-6">
         <WakeUpCard />
-        <Link href="/mind/light" className="glass flex items-center gap-4 rounded-xl p-4 transition-transform duration-150 active:scale-[0.99]">
+        <Link href="/mind/light" className="glass-elevated flex items-center gap-4 rounded-xl p-4 transition-transform duration-150 active:scale-[0.99]">
           <span className="grid size-11 shrink-0 place-items-center rounded-full card text-title3 text-ink" aria-hidden="true">
             ✦
           </span>

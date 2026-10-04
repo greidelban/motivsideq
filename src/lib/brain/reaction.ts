@@ -2,9 +2,9 @@ import { type Rng, randInt } from "@/lib/random";
 import { mean, median } from "./stats";
 
 export const REACTION_TRIALS = 5;
-export const REACTION_DELAY_MS = [1500, 4000] as const;
+const REACTION_DELAY_MS = [1500, 4000] as const;
 // Sotto i 100 ms non è una reazione allo stimolo ma un anticipo: conta come partenza falsa.
-export const MIN_HUMAN_REACTION_MS = 100;
+const MIN_HUMAN_REACTION_MS = 100;
 
 export function randomDelay(rng: Rng): number {
   return randInt(rng, REACTION_DELAY_MS[0], REACTION_DELAY_MS[1]);

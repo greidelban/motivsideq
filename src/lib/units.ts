@@ -4,7 +4,7 @@
 export const WEIGHT_UNITS = ["kg", "lb"] as const;
 export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 
-export const KG_PER_LB = 0.45359237;
+const KG_PER_LB = 0.45359237;
 
 /** Da unità dell'utente a kg (arrotondato a 0,1 kg, la precisione salvata). */
 export function toKg(value: number, unit: WeightUnit): number {

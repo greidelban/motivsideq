@@ -32,7 +32,7 @@ export function GameList() {
 
         return (
           <li key={id}>
-            <Link href={`/mind/${id}`} className="glass flex items-center gap-4 rounded-xl p-4 transition-transform duration-150 active:scale-[0.99]">
+            <Link href={`/mind/${id}`} className="glass-elevated flex items-center gap-4 rounded-xl p-4 transition-transform duration-150 active:scale-[0.99]">
               <div className="min-w-0 flex-1">
                 <h3 className="text-headline font-semibold">{g.name}</h3>
                 <p className="truncate text-footnote text-muted">{g.tagline}</p>

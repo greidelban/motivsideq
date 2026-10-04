@@ -1,6 +1,6 @@
 "use client";
 
-import { z } from "zod";
+import * as z from "zod/mini";
 import { defineStore } from "@/lib/storage/local-store";
 import { ZETAMAC_DURATIONS, ZETAMAC_LEVELS, type ZetamacDuration, type ZetamacLevel } from "./zetamac";
 
@@ -8,7 +8,7 @@ const levelIds = Object.keys(ZETAMAC_LEVELS) as [ZetamacLevel, ...ZetamacLevel[]
 
 const schema = z.object({
   zetamacLevel: z.enum(levelIds),
-  zetamacDuration: z.union(ZETAMAC_DURATIONS.map((d) => z.literal(d)) as [z.ZodLiteral<ZetamacDuration>, z.ZodLiteral<ZetamacDuration>]),
+  zetamacDuration: z.union(ZETAMAC_DURATIONS.map((d) => z.literal(d)) as [z.ZodMiniLiteral<ZetamacDuration>, z.ZodMiniLiteral<ZetamacDuration>]),
 });
 
 export type BrainSettings = z.infer<typeof schema>;

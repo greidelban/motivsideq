@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import * as z from "zod/mini";
 import { type BackupEntry, buildBackup, countItems, mergeByKey, parseBackup, planImport } from "./backup";
 
 const item = z.object({ id: z.string(), v: z.number() });
@@ -54,7 +54,7 @@ describe("completezza dell'export", () => {
     const { BACKUP_STORE_NAMES } = await import("./backup-stores");
     const { ALL_DEFS } = await import("./definitions");
     // Solo il segno "ciclo cancellato il…" resta fuori: è una nota interna, non un dato.
-    const userData = ALL_DEFS.map((d) => d.name).filter((n) => n !== "cycle-wiped-at");
+    const userData = ALL_DEFS.map((d) => d.name);
     expect(BACKUP_STORE_NAMES).toEqual(expect.arrayContaining([...userData, "appearance", "brain-settings"]));
   });
 });

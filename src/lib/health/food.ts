@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // Conta-calorie a inserimento manuale: niente database di alimenti esterni.
 
@@ -9,16 +9,16 @@ export const MAX_KCAL = 5000;
 export const MAX_MACRO_G = 500;
 
 export const foodEntrySchema = z.object({
-  id: z.string().max(64),
+  id: z.string().check(z.maxLength(64)),
   /** Giorno locale AAAA-MM-GG. */
-  day: z.string().max(10),
-  at: z.string().max(40),
+  day: z.string().check(z.maxLength(10)),
+  at: z.string().check(z.maxLength(40)),
   meal: z.enum(MEALS),
-  name: z.string().trim().min(1).max(80),
-  kcal: z.number().min(0).max(MAX_KCAL),
-  protein: z.number().min(0).max(MAX_MACRO_G).optional(),
-  carbs: z.number().min(0).max(MAX_MACRO_G).optional(),
-  fat: z.number().min(0).max(MAX_MACRO_G).optional(),
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(80)),
+  kcal: z.number().check(z.gte(0), z.lte(MAX_KCAL)),
+  protein: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
+  carbs: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
+  fat: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
 });
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 

@@ -7,7 +7,7 @@ export function bmrMifflin({ sex, kg, cm, age }: { sex: "female" | "male"; kg: n
   return 10 * kg + 6.25 * cm - 5 * age + (sex === "male" ? 5 : -161);
 }
 
-export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
+const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,

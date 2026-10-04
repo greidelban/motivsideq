@@ -38,7 +38,7 @@ function Food() {
   return (
     <>
       <div className="glass flex items-center gap-2 rounded-full p-1">
-        <button type="button" aria-label={t.prevDay} onClick={() => setDay(addDays(day, -1))} className="grid size-10 place-items-center rounded-full text-ink-2 hover:text-ink">
+        <button type="button" aria-label={t.prevDay} onClick={() => setDay(addDays(day, -1))} className="grid size-11 place-items-center rounded-full text-ink-2 hover:text-ink">
           <IconChevronLeft width={20} height={20} />
         </button>
         <p className="flex-1 text-center text-subhead font-semibold first-letter:uppercase" aria-live="polite">
@@ -49,7 +49,7 @@ function Food() {
           aria-label={t.nextDay}
           disabled={day >= today}
           onClick={() => setDay(addDays(day, 1))}
-          className="grid size-10 place-items-center rounded-full text-ink-2 hover:text-ink disabled:opacity-30"
+          className="grid size-11 place-items-center rounded-full text-ink-2 hover:text-ink disabled:opacity-30"
         >
           <IconChevronRight width={20} height={20} />
         </button>
@@ -291,7 +291,7 @@ function AddFood({ day, recent }: { day: string; recent: FoodEntry[] }) {
                   addFood({ meal, name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat }, day);
                   pulseLight(0.25);
                 }}
-                className="card min-h-10 max-w-full truncate rounded-full px-3.5 text-subhead text-ink-2 hover:text-ink"
+                className="card min-h-11 max-w-full truncate rounded-full px-3.5 text-subhead text-ink-2 hover:text-ink"
               >
                 + {f.name} <span className="num text-muted">{formatNumber(locale, f.kcal)}</span>
               </button>

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { type AgeGroup, MIN_AGE, ageFromBirth, ageGroup } from "@/lib/age";
 import { WEIGHT_UNITS } from "@/lib/units";
 
@@ -21,22 +21,22 @@ export const WEIGHT_RANGE = { min: 25, max: 400 } as const;
 export const NAME_MAX = 16;
 
 export const profileSchema = z.object({
-  displayName: z.string().trim().min(1).max(NAME_MAX).optional(),
-  sex: z.enum(SEXES).optional(),
-  heightCm: z.number().min(HEIGHT_RANGE.min).max(HEIGHT_RANGE.max).optional(),
-  birthYear: z.number().int().min(1900).max(2100).optional(),
-  birthMonth: z.number().int().min(1).max(12).optional(),
-  activityLevel: z.enum(ACTIVITY_LEVELS).optional(),
-  goal: z.enum(GOALS).optional(),
+  displayName: z.optional(z.string().check(z.trim(), z.minLength(1), z.maxLength(NAME_MAX))),
+  sex: z.optional(z.enum(SEXES)),
+  heightCm: z.optional(z.number().check(z.gte(HEIGHT_RANGE.min), z.lte(HEIGHT_RANGE.max))),
+  birthYear: z.optional(z.int().check(z.gte(1900), z.lte(2100))),
+  birthMonth: z.optional(z.int().check(z.gte(1), z.lte(12))),
+  activityLevel: z.optional(z.enum(ACTIVITY_LEVELS)),
+  goal: z.optional(z.enum(GOALS)),
   /** Solo per l'interfaccia: il peso si salva sempre in kg. */
-  weightUnit: z.enum(WEIGHT_UNITS).optional(),
+  weightUnit: z.optional(z.enum(WEIGHT_UNITS)),
 });
 export type Profile = z.infer<typeof profileSchema>;
 
 export const bodyWeightSchema = z.object({
   /** Giorno locale AAAA-MM-GG. */
-  day: z.string().max(10),
-  kg: z.number().min(WEIGHT_RANGE.min).max(WEIGHT_RANGE.max),
+  day: z.string().check(z.maxLength(10)),
+  kg: z.number().check(z.gte(WEIGHT_RANGE.min), z.lte(WEIGHT_RANGE.max)),
 });
 export type BodyWeight = z.infer<typeof bodyWeightSchema>;
 

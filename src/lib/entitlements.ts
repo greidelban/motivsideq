@@ -1,16 +1,18 @@
 export type Plan = "free" | "pro";
 
 // Unico punto che decide cosa è sbloccato per ciascun piano.
-// Oggi è tutto gratuito; per aggiungere un tier basta cambiare questa tabella
-// (e, in futuro, aggiornare `profiles.plan` dal webhook di pagamento).
-export type Feature = "journal" | "workouts" | "nutrition" | "insights" | "cycle" | "export" | "chat";
+// Il piano vero lo decide il server (`profiles.plan`, aggiornato dalla verifica
+// degli acquisti in-app): il cloud cifrato lo controlla anche il database.
+export type Feature = "journal" | "workouts" | "nutrition" | "insights" | "cycle" | "export" | "chat" | "cloud";
 
-/** Senza account c'è solo il piano gratuito (con Stripe arriverà da `profiles.plan`). */
+/** Senza account c'è solo il piano gratuito. */
 export const LOCAL_USER: { plan: Plan } = { plan: "free" };
 
 const PLANS_BY_FEATURE: Record<Feature, readonly Plan[]> = {
   // La chat in incognito sarà inclusa nell'abbonamento: per ora resta col lucchetto.
   chat: ["pro"],
+  // Cloud cifrato e sincronizzazione tra dispositivi (src/lib/sync/run.ts legge il piano dal server).
+  cloud: ["pro"],
   journal: ["free", "pro"],
   workouts: ["free", "pro"],
   nutrition: ["free", "pro"],

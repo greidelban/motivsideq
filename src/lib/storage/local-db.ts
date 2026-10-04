@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { z } from "zod";
+import * as z from "zod/mini";
 import { type Backend, legacyBackend, normalize } from "./backends";
 import type { LocalStore } from "./local-store";
 import { type MigrationReport, migrateLegacy } from "./migration";
@@ -35,6 +35,12 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
   let queue: Promise<void> = Promise.resolve();
   let migration: MigrationReport | null = null;
   let writeError: unknown = null;
+  const writeErrorListeners = new Set<() => void>();
+  function setWriteError(error: unknown) {
+    if (error === writeError) return;
+    writeError = error;
+    writeErrorListeners.forEach((l) => l());
+  }
 
   const defByName = new Map(defs.map((d) => [d.name, d]));
 
@@ -49,9 +55,13 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
   function persist(task: (b: Backend) => Promise<void>, name: string) {
     queue = queue
       .then(() => task(backend!))
-      .then(() => channel?.postMessage({ names: [name] }))
+      .then(() => {
+        // Un salvataggio riuscito dopo un errore: l'avviso sparisce.
+        if (writeError) setWriteError(null);
+        channel?.postMessage({ names: [name] });
+      })
       .catch((error) => {
-        writeError = error;
+        setWriteError(error);
         console.error("[local-db] salvataggio non riuscito", error);
       });
   }
@@ -284,9 +294,16 @@ export function createLocalDb({ defs, open, legacy, now = () => new Date().toISO
     applyRemote,
     removeLocal,
     markAllDirty,
+    /** Toglie davvero dal dispositivo tutti i dati dell'utente (uscita con "togli i dati"). */
+    purgeAll: () => defs.forEach((d) => purge(d)),
     migrationReport: () => migration,
     backendKind: () => backend?.kind ?? null,
     lastWriteError: () => writeError,
+    /** Avvisa quando un salvataggio fallisce o torna a funzionare. */
+    onWriteError(cb: () => void) {
+      writeErrorListeners.add(cb);
+      return () => writeErrorListeners.delete(cb);
+    },
   };
 }
 

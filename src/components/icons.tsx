@@ -49,13 +49,6 @@ export const IconFood = (p: IconProps) => (
   </Icon>
 );
 
-export const IconMore = (p: IconProps) => (
-  <Icon {...p}>
-    <circle cx="12" cy="8" r="3.5" />
-    <path d="M5 20c1.2-3.4 4-5 7-5s5.8 1.6 7 5" />
-  </Icon>
-);
-
 export const IconInfo = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="9" />

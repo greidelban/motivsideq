@@ -5,7 +5,7 @@
 export const LOCALES = ["en", "it"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+const DEFAULT_LOCALE: Locale = "en";
 export const LOCALE_COOKIE = "ritmo-locale";
 
 // Nome di ogni lingua scritto nella lingua stessa (come nei selettori di sistema).

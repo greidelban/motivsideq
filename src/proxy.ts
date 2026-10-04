@@ -22,7 +22,7 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     // React in sviluppo usa eval per gli stack trace; in produzione no.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
-    // Gli attributi style="" (Recharts, larghezze delle barre) richiedono unsafe-inline:
+    // Gli attributi style="" (larghezze delle barre, colori calcolati) richiedono unsafe-inline:
     // gli stili non eseguono codice, gli script restano bloccati dal nonce.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",

@@ -24,7 +24,7 @@ export function Segmented<T extends string | number>({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(o.value)}
-              className={`min-h-10 flex-1 rounded-full text-subhead font-semibold transition-colors duration-150 ${
+              className={`min-h-11 flex-1 rounded-full text-subhead font-semibold transition-colors duration-150 ${
                 active ? "text-ink" : "text-muted hover:text-ink-2"
               }`}
               style={active ? { background: "var(--glass-lens)", boxShadow: "var(--glass-lens-edge)" } : undefined}
