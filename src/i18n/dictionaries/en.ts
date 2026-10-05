@@ -1,6 +1,10 @@
 // Dizionario base (inglese). Definisce la forma di tutti gli altri: una
 // traduzione con chiavi mancanti o in più non compila.
-// Segnaposto: {nome}. Plurali: oggetti { one, other } usati con plural().
+// Segnaposto: {nome}. Plurali: oggetti { one, other } usati con plural(); le
+// altre lingue usano le forme che chiedono (polacco e russo few/many, arabo anche
+// zero/two, cinese solo other): il test controlla che ci siano tutte.
+
+import type { PluralForms } from "../format";
 
 export const en = {
   meta: {
@@ -61,6 +65,79 @@ export const en = {
       journal: { title: "Journal", text: "How did your day go?" },
       training: { title: "Training", text: "Gym, running, yoga and more: log a workout in a few taps." },
       food: { title: "Food", text: "Count calories and protein for the day." },
+    },
+  },
+  quotes: {
+    card: {
+      eyebrow: "Quote of the day",
+      settings: "Tone and notifications",
+    },
+    categories: { discipline: "Discipline", habits: "Habits", character: "Character", recovery: "Recovery" },
+    intensity: { soft: "Soft", direct: "Direct", hard: "Hard" },
+    notification: {
+      title: "Quote of the day",
+      sponsoredTitle: "Sponsored · {brand}",
+      channel: "Daily quotes",
+      channelHint: "The quote of the day, at the times you choose.",
+      sponsoredChannel: "Sponsored quotes",
+      sponsoredChannelHint: "At most one a week, only if you turned them on.",
+    },
+    sponsorCard: {
+      label: "Sponsored · {brand}",
+      why: "About sponsored quotes",
+    },
+    settings: {
+      title: "Daily quotes",
+      button: "Daily quotes",
+      summaryOff: "{intensity} · notifications off",
+      summaryOn: "{intensity} · {times}",
+      summaryPaused: "{intensity} · paused",
+      intensity: {
+        title: "Tone",
+        hint: "Same topics, a different voice: discipline, habits, character and recovery.",
+        example: "Today, with this tone:",
+      },
+      notifications: {
+        title: "Notifications",
+        enable: "Send me the quote as a notification",
+        unavailable: "Notifications arrive with the iPhone and Android app. Here you'll find the quote every day in Today. You can already choose times and quiet hours.",
+        denied: "Notifications are blocked for {app} in the device settings. Allow them there, then turn this on again.",
+        privacy: "They're scheduled on this device, without any server, and contain only the quote: never your name or your data.",
+        times: "Times",
+        time: "Time {n}",
+        add: "Add a time",
+        remove: "Remove time {n}",
+        inQuiet: "This time falls in your quiet hours: no notification.",
+      },
+      quiet: {
+        title: "Quiet hours",
+        enable: "No notifications during these hours",
+        from: "From",
+        to: "To",
+      },
+      pause: {
+        title: "Pause",
+        hint: "Stops the notifications for a while: they restart on their own.",
+        day: "1 day",
+        threeDays: "3 days",
+        week: "1 week",
+        until: "Paused until {date}.",
+        resume: "Resume now",
+      },
+      sponsored: {
+        title: "Sponsored quotes",
+        intro: "Optional and off unless you turn it on. A brand can sponsor a quote: you'll see it in Today for that day only and, if notifications are on, you may receive it as a notification.",
+        rules: {
+          frequency: "At most one sponsored notification a week, and one a month from the same brand.",
+          label: "Always marked “Sponsored · Brand”, on a separate notification channel (on Android you can turn it off on its own).",
+          privacy: "No tracking: the app downloads the same signed file for everyone and sends nothing about you or about what you read.",
+          topics: "Sponsored quotes never talk about body, weight, food or the cycle, and never appear in Cycle, Food or Training: only in Today.",
+        },
+        consent: "I've read this and I want to receive sponsored quotes",
+        enable: "Turn on sponsored quotes",
+        onSince: "On since {date}. You can turn them off at any time.",
+        disable: "Turn off sponsored quotes",
+      },
     },
   },
   journal: { title: "Journal", comingSoonWhat: "The journal" },
@@ -200,18 +277,58 @@ export const en = {
       },
       empty: {
         title: "Start tracking",
-        text: "Log the first day of your last period: the app will estimate the next ones.",
+        text: "Tap the first day of your last period in the calendar: the app will estimate the next ones.",
       },
-      actions: {
-        start: "My period started",
-        end: "My period ended",
-        date: "Date",
-        save: "Save",
-        errors: {
-          future: "The date can't be in the future.",
-          duplicate: "A period starting on this day is already logged.",
-          insidePeriod: "This day is inside a period already logged.",
-          noPeriod: "There is no period starting before this day.",
+      quick: {
+        started: "My period started today",
+        ended: "My period ended today",
+      },
+      calendar: {
+        title: "Calendar",
+        prev: "Previous month",
+        next: "Next month",
+        hint: "Tap a day to open it below: mark it as a period day and log flow and symptoms.",
+        legend: {
+          period: "Period",
+          predicted: "Expected",
+          fertile: "Fertile window",
+          ovulation: "Ovulation",
+        },
+        state: {
+          period: "period",
+          predicted: "expected period",
+          fertile: "fertile window",
+          ovulation: "estimated ovulation",
+          log: "something logged",
+          today: "today",
+        },
+      },
+      day: {
+        periodDay: "Period day",
+        future: "This day hasn't come yet: the calendar only shows estimates.",
+      },
+      reminders: {
+        title: "Reminders and privacy",
+        enable: "Remind me before my period",
+        daysBefore: "How early",
+        days: {
+          one: "{n} day before",
+          other: "{n} days before",
+        },
+        discreet: "Discreet notification",
+        discreetHint: "It only says “A reminder for you”: nobody near your phone can tell what it's about.",
+        unavailable: "Reminders arrive with the iPhone and Android app. You can already choose them here.",
+        denied: "Notifications are blocked for {app} in the device settings.",
+        showInToday: "Show the cycle in Today",
+        showInTodayHint: "Turn it off if other people see your screen.",
+        notification: {
+          discreet: "A reminder for you.",
+          detailed: {
+            one: "Your period may start tomorrow.",
+            other: "Your period may start in {n} days.",
+          },
+          channel: "Reminders",
+          channelHint: "The reminders you turned on.",
         },
       },
       stats: {
@@ -489,7 +606,7 @@ export const en = {
   privacy: {
     title: "{app} privacy",
     updated: "Updated on {date}",
-    intro: "In short: your data is only for you. Without the cloud it stays on your device; with the cloud it is encrypted on your device before it leaves, so only you can read it, not even we can. No ads, no analytics, no artificial intelligence, no selling to anyone.",
+    intro: "In short: your data is only for you. Without the cloud it stays on your device; with the cloud it is encrypted on your device before it leaves, so only you can read it, not even we can. No ads (unless you choose sponsored quotes), no analytics, no artificial intelligence, no selling to anyone.",
     device: {
       title: "On your device",
       p1: "Everything you enter (mind exercise results, profile, weight, workouts, meals and cycle data) is stored in this device's browser storage. Without the cloud it is not sent to us or anyone else.",
@@ -518,6 +635,10 @@ export const en = {
     rights: {
       title: "Your rights",
       body: "You can access, correct, export and delete your data, withdraw your consent and object to processing. For any request write to {contact}. Since we can't read your cloud data, exporting and correcting it happens in the app. You can also lodge a complaint with your data protection authority (in Italy, the Garante per la protezione dei dati personali).",
+    },
+    quotes: {
+      title: "Daily quotes and sponsored quotes",
+      body: "Quotes and notifications are chosen and scheduled on your device: we don't know when you receive them or what you read. Sponsored quotes are off unless you turn them on: then the app downloads a signed file of quotes, the same for everyone, with no identifiers. As with any download, the server hosting the file receives your device's network address; it isn't used to identify you or to count views.",
     },
     cookies: {
       title: "Cookies and browser storage",
@@ -669,4 +790,16 @@ export const en = {
   },
 };
 
-export type Dictionary = typeof en;
+type PluralKey = "zero" | "one" | "two" | "few" | "many" | "other";
+
+// Forma del dizionario: stesse chiavi dell'inglese, ma i plurali accettano le
+// forme di ogni lingua (un oggetto con solo chiavi plurali e "other").
+type Shape<T> = T extends string
+  ? string
+  : T extends { other: string }
+    ? Exclude<keyof T, PluralKey> extends never
+      ? PluralForms
+      : { [K in keyof T]: Shape<T[K]> }
+    : { [K in keyof T]: Shape<T[K]> };
+
+export type Dictionary = Shape<typeof en>;

@@ -6,15 +6,18 @@ export function Segmented<T extends string | number>({
   options,
   value,
   onChange,
+  labelHidden = false,
 }: {
   label: string;
+  /** Etichetta solo per i lettori di schermo (quando il titolo sopra dice già la stessa cosa). */
+  labelHidden?: boolean;
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
 }) {
   return (
     <fieldset>
-      <legend className="label">{label}</legend>
+      <legend className={labelHidden ? "sr-only" : "label"}>{label}</legend>
       <div className="card flex gap-1 rounded-full p-1">
         {options.map((o) => {
           const active = o.value === value;

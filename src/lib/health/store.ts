@@ -4,6 +4,7 @@ import { localDateKey } from "@/lib/dates";
 import { localDb } from "@/lib/storage/db";
 import { DEFS } from "@/lib/storage/definitions";
 import { isCloudLinked } from "@/lib/sync/run";
+import { cyclePrefs } from "./cycle-prefs";
 import { type FoodEntry, MAX_STORED_FOOD } from "./food";
 import { MAX_STORED_WORKOUTS, type Workout } from "./workouts";
 
@@ -43,6 +44,8 @@ export function addFood(input: Omit<FoodEntry, "id" | "at" | "day">, day?: strin
  * sincronizzazione toglie anche i segnali da qui (engine.ts).
  */
 export function deleteCycleData() {
+  // Anche i promemoria e la scheda in Oggi tornano come all'inizio.
+  cyclePrefs.clear();
   if (isCloudLinked()) {
     cyclePeriods.clear();
     cycleDayLogs.clear();

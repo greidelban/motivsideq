@@ -18,6 +18,19 @@ Fase 2 (piano approvato): A1 dati pronti al cloud ✅ → E ciclo solo per le do
   - offline: schermate principali pronte anche senza rete (provato spegnendo il server: Allenamento, Mente, salvataggio di un allenamento);
   - cancellare i dati del ciclo ora arriva anche al cloud e agli altri dispositivi (prima restavano nel cloud cifrato); i segnali di cancellazione spariscono dal telefono dopo l'invio.
 
+## 0b. Frasi del giorno (5/10/2026)
+- [x] Archivio di 291 frasi in 11 lingue, 4 categorie, toni Soft / Diretto / Duro; temi vietati controllati dai test in ogni lingua. Il 5/10/2026 aggiunte 135 frasi del proprietario (da mv.txt), corrette, tradotte e suddivise; escluse solo quella sull'aspetto fisico ("ugly people") e quella sull'autunno (stagionale). Tono di partenza "Diretto" (personalità più aggressiva).
+- [ ] Facoltativo: frasi legate alla stagione (es. "You smell that? It's autumn") con un campo "mesi" nell'archivio.
+- [x] "Frase del giorno" in Oggi; impostazioni in `/settings/quotes` (tono, orari, ore di silenzio, pausa).
+- [x] Pianificazione delle notifiche locali (limite di iOS, ore di silenzio, pausa, nessun dato personale) e invio al plugin nativo. Provato nel browser con un plugin finto (27 notifiche programmate, una sponsorizzata nel suo canale, toccate solo le notifiche delle frasi).
+- [x] Frasi sponsorizzate: file firmato, max 10 slot da un giorno, consenso separato e non preselezionato, limiti 1/settimana e 1/mese per sponsor, carta solo in Oggi. Provato nel browser con un file di prova (download, carta, file manomesso rifiutato, disattivazione che toglie il file).
+- [ ] Quando arriva Capacitor: installare `@capacitor/local-notifications` (il codice lo trova da solo in `window.Capacitor`), provare le notifiche vere su iPhone e Android, icona piccola delle notifiche su Android.
+- [ ] Android 13+: il permesso si chiede già quando si accendono le notifiche; da Android 12 valutare `SCHEDULE_EXACT_ALARM` se gli orari arrivano in ritardo.
+- [ ] Sponsor: creare le chiavi vere (`node scripts/sponsor-keys.mjs`), scegliere dove pubblicare il file (es. lo stesso hosting dell'app) e impostare `NEXT_PUBLIC_SPONSOR_FEED_URL` e `NEXT_PUBLIC_SPONSOR_PUBLIC_KEY`. **Custodire la chiave privata** (chi la ha può far comparire frasi nell'app).
+- [ ] Prima di vendere slot: contratto/regole per gli sponsor (temi vietati, niente link, una frase al giorno), e verifica legale dell'etichetta "Sponsorizzato" e del consenso (App Store, regola 4.5.4: notifiche promozionali solo con consenso esplicito nell'app e un modo per disattivarle, come qui).
+- [ ] Far rivedere da madrelingua le frasi in tutte le lingue (le traduzioni sono mie), soprattutto quelle ironiche ("Gne gne", "Womp womp") che si adattano più che tradursi.
+- [ ] Facoltativo: l'utente sceglie le categorie che preferisce (oggi tutte e quattro).
+
 ## 1. Account e backend (Supabase): fase A2
 Progetto Supabase `idghdzlznxhqlpaqdmfy` (Central EU, Frankfurt). Chiavi in `.env.local` (escluso da git): l'app usa la chiave **publishable**.
 Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`).
@@ -54,6 +67,17 @@ Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client
   - [x] tetti di righe e di spazio per utente (errore `RL002`, messaggio nella pagina Account);
   - [ ] per lo scanner dei codici a barre sul web servirà togliere `camera=()` da `Permissions-Policy` (`next.config.ts`).
 - [x] Spazio locale: indicatore nelle Impostazioni (tetto 1 GB, `src/lib/storage/quota.ts`). Da far rispettare quando arriveranno le foto.
+
+## 0c. Ciclo: uso quotidiano (5/10/2026)
+- [x] Calendario del mese: mestruazioni registrate, previste (tratteggiate), finestra fertile, ovulazione, oggi, giorni con note; mesi avanti e indietro; da destra a sinistra in arabo ed ebraico.
+- [x] Tocco su un giorno: segnarlo o toglierlo come giorno di mestruazioni (si allunga, accorcia, unisce o crea da solo), flusso e sintomi anche dei giorni passati. Il vecchio modulo con la data è sparito.
+- [x] Pulsante rapido "iniziate oggi" / "finite oggi"; toccando una mestruazione nello storico la si apre nel calendario.
+- [x] Scheda del ciclo in Oggi (giorno, fase, prossime mestruazioni), nascondibile per chi teme sguardi sullo schermo.
+- [x] Promemoria 1-3 giorni prima delle mestruazioni previste (notifica locale alle 9), discreti di default. Provato nel browser con un plugin finto: due promemoria, canale privato, notifiche delle frasi intatte.
+- [ ] Legare il ciclo al check-in giornaliero (umore, energia, sonno) quando ci sarà: la fonte resta il check-in.
+- [ ] Rapporti, protezione e pillola (decisi: solo sul telefono, consenso a parte, non sincronizzati).
+- [ ] Orario dei promemoria scelto dall'utente (oggi fisso alle 9) e promemoria "segna il ciclo" se è in ritardo.
+- [ ] Prova su telefono vero dei promemoria (iPhone e Android: canale privato sullo schermo bloccato).
 
 ## 1b. Schema
 Riassunto in `docs/SCHEMA.md`. Lo schema v2 con tabelle in chiaro (peso, profilo, ciclo, diario…) è stato sostituito il 4/10/2026 dal caveau cifrato; le sue regole su età e Ciclo ora valgono solo nell'app.
@@ -117,13 +141,21 @@ Proposta in attesa di conferma:
 
 ## 5. PWA e qualità
 - [ ] Cache offline delle pagine e dei file statici nel service worker, così i giochi del mattino funzionano anche senza rete (oggi c'è solo la pagina "Sei offline").
-- [ ] Notifica push facoltativa "È ora del risveglio" la mattina.
+- [ ] Promemoria facoltativo "È ora del risveglio" la mattina: notifica **locale** come le Frasi del giorno (restano 14 posti liberi sotto il limite di iOS, `RESERVED_FOR_OTHER_NOTIFICATIONS`).
 - [ ] Prova reale su iPhone e Android installando la PWA: vibrazione al tocco, tastierino, aree sicure.
 - [ ] Luce viva su telefoni veri: fluidità e consumo di batteria (eventualmente un livello "leggero" automatico sui dispositivi lenti, come in pathwyr).
 - [ ] Interruttore in Impostazioni per spegnere la luce viva (oggi si adatta solo a "riduci movimento").
 
 ## 6. Lingue
-- [ ] Far rivedere da madrelingua i testi inglesi, soprattutto disclaimer e privacy (oggi sono traduzioni mie).
+11 lingue dal 5/10/2026: inglese, italiano, spagnolo, francese, portoghese (Brasile), tedesco, polacco, russo, cinese semplificato, arabo ed ebraico (da destra a sinistra). Interfaccia, frasi, parole vietate e pagina offline. Provato nel browser in arabo, ebraico, cinese e russo.
+- [ ] Far rivedere da madrelingua tutte le lingue, soprattutto disclaimer, informativa e testi del ciclo (oggi sono traduzioni mie).
+- [ ] Arabo: oggi maschile generico (i verbi rivolti a "tu" hanno sempre un genere); le schermate del Ciclo usano il femminile. Valutare con un madrelingua.
+- [ ] Arabo: le cifre seguono `Intl` (oggi latine); i giochi mostrano sempre cifre latine e operazioni da sinistra a destra.
+- [ ] Portoghese: oggi variante del Brasile; se serve anche il Portogallo, aggiungere `pt-PT`.
+- [ ] Cinese: oggi solo semplificato (anche Taiwan e Hong Kong lo ricevono); valutare il tradizionale (`zh-Hant`).
+- [ ] Ebraico: pulsanti e frasi all'infinito (neutro), altrove maschile generico; il Ciclo al femminile. Da far rivedere.
+- [ ] Prova su telefoni veri in arabo ed ebraico (da destra a sinistra) e cinese (caratteri di sistema).
+- [ ] Altre lingue possibili con lo stesso schema (giapponese, coreano, turco, olandese…): vedi README, "Aggiungere una lingua".
 - [ ] Per ogni nuova lingua: disclaimer e informativa vanno rivisti anche dal punto di vista legale del paese.
 - [ ] Manifest PWA per lingua (oggi nome e descrizione sono solo in inglese).
 

@@ -130,10 +130,10 @@ export function ZetamacGame({
       </div>
 
       <div className="card flex min-h-[26dvh] flex-1 flex-col items-center justify-center gap-3 rounded-xl">
-        <p className="num text-[44px] leading-none font-semibold" aria-live="polite">
+        <p className="num text-[44px] leading-none font-semibold" dir="ltr" aria-live="polite">
           {problem && problemText(problem)}
         </p>
-        <p className="num min-h-[48px] text-[40px] leading-none font-semibold text-secondary" aria-label={t.yourAnswer}>
+        <p className="num min-h-[48px] text-[40px] leading-none font-semibold text-secondary" dir="ltr" aria-label={t.yourAnswer}>
           {input || <span className="text-muted">?</span>}
         </p>
         {/* Tempo dell'ultima risposta giusta: feedback immediato senza distrarre. */}
@@ -146,7 +146,7 @@ export function ZetamacGame({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5" role="group" aria-label={t.keypad}>
+      <div className="grid grid-cols-3 gap-2.5" dir="ltr" role="group" aria-label={t.keypad}>
         {KEYS.map((k) => (
           <button
             key={k}

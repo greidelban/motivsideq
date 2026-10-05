@@ -69,7 +69,7 @@ function Training() {
                 const kcal = workoutKcal(w, weight);
                 const name = t.types[w.type];
                 return (
-                  <li key={w.id} className="card flex items-center gap-3 py-2.5 pr-1.5 pl-4">
+                  <li key={w.id} className="card flex items-center gap-3 py-2.5 pe-1.5 ps-4">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-subhead font-semibold">{name}</p>
                       <p className="truncate text-footnote text-muted">
@@ -77,7 +77,7 @@ function Training() {
                         {w.note ? ` · ${w.note}` : ""}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="num text-subhead">{interpolate(t.week.minutes, { n: formatNumber(locale, w.minutes) })}</p>
                       {kcal !== null && <p className="num text-footnote text-muted">{interpolate(t.week.kcal, { n: formatNumber(locale, kcal) })}</p>}
                     </div>

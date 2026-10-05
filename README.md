@@ -1,6 +1,6 @@
 # GetControl
 
-Web app mobile-first (PWA), in inglese (lingua base) e italiano: allenamento mentale del mattino, diario personale, registro allenamenti, tracciamento alimentare e, opzionale, ciclo mestruale.
+Web app mobile-first (PWA) in 11 lingue (inglese base, italiano, spagnolo, francese, portoghese, tedesco, polacco, russo, cinese, arabo, ebraico): allenamento mentale del mattino, diario personale, registro allenamenti, tracciamento alimentare e, opzionale, ciclo mestruale.
 Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Vitest, Supabase (account facoltativo, nel browser).
 
 > Il nome si cambia in `src/lib/app.ts`. Gli identificativi interni (chiavi di salvataggio, database locale, cookie) restano `ritmo`: cambiarli farebbe perdere i dati.
@@ -34,8 +34,18 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Vitest, Supabase 
   - La luce si accende quando inspiri e si abbassa quando espiri, e intanto cresce come un'alba fino al bagliore finale.
   - Funziona anche con lo sfondo Classico: durante l'esercizio la luce si accende comunque.
 - Nel calcolo rapido si vedono il tempo di ogni risposta, la media, la risposta più veloce e più lenta, e il tempo medio per operazione.
-- **Lingue:** inglese come base, italiano tradotto. Si riconosce la lingua del browser e si cambia in Impostazioni (cookie `ritmo-locale`).
+- **Frasi del giorno** (scheda in Oggi, impostazioni in Impostazioni → Frasi del giorno, pagina `/settings/quotes`):
+  - archivio di 291 frasi in tutte le lingue dell'app (156 scritte per l'app e 135 proposte dal proprietario, riviste): metadati in `src/lib/quotes/archive.ts`, testi in `src/lib/quotes/texts/<lingua>.ts` (il telefono carica solo quello della sua lingua); disciplina, abitudini, carattere, recupero, ognuna in tre toni (Soft, Diretto, Duro); tono di partenza "Diretto": l'app ha una personalità un po' aggressiva e ironica. Mai corpo, peso, cibo, calorie, ciclo né insulti (controllato dai test con `content-rules.ts`, con le parole vietate di ogni lingua);
+  - la frase dipende solo dal giorno e dal tono: niente da salvare, ed è la stessa della prima notifica;
+  - **notifiche locali** programmate dal telefono (plugin LocalNotifications di Capacitor, quando ci sarà l'app nativa): nessun server, nessun token push, solo la frase nel testo. Fino a 3 orari al giorno, ore di silenzio, pausa di 1/3/7 giorni; al massimo 50 notifiche in attesa (iOS ne tiene 64: le altre restano per altri promemoria), 14 giorni in anticipo, riprogrammate a ogni apertura. Nel browser non ci sono notifiche: la frase resta in Oggi;
+  - **frasi sponsorizzate** (facoltative, spente finché l'utente non dà il consenso, con testo e tasto per disattivarle): un file JSON **firmato** (ECDSA P-256) scaricato da un indirizzo statico, uguale per tutti, al massimo 10 slot da un giorno ciascuno. Notifica con "Sponsorizzato · Marca" nel titolo, canale Android separato, al massimo 1 a settimana in totale e 1 al mese per sponsor; carta sponsor solo in Oggi e solo quel giorno. Vedi "Frasi sponsorizzate" più sotto.
+  - preferenze, consenso e registro degli sponsor restano solo sul dispositivo (localStorage); nessuna analytics.
+- **Lingue:** inglese come base; italiano, spagnolo, francese, portoghese (Brasile), tedesco, polacco, russo, cinese semplificato, arabo ed ebraico. Si riconosce la lingua del browser e si cambia in Impostazioni (cookie `ritmo-locale`).
+  - plurali secondo le regole di ogni lingua (polacco e russo one/few/many, arabo anche zero/two, ebraico one/two/other, cinese solo other);
+  - arabo ed ebraico si leggono da destra a sinistra (`dir="rtl"`, `localeDir()` in `src/i18n/config.ts`): nei componenti si usano classi logiche (`ps-`/`pe-`, `start`/`end`, `text-start`) e le frecce si specchiano con `rtl:-scale-x-100`; operazioni e tastierino del calcolo restano da sinistra a destra;
+  - font Onest con il cirillico; cinese, arabo ed ebraico con i caratteri di sistema.
 - **Salute** (Allenamento, Cibo, Ciclo) ha una prima versione locale. Il Ciclo compare solo a chi indica sesso femmina (`canUseCycle` in `src/lib/health/cycle-access.ts`); il peso si può vedere in kg o lb, ma si salva in kg.
+  - **Ciclo**: calendario del mese (registrato, previsto, finestra fertile, ovulazione), tocco su un giorno per segnarlo e registrare flusso e sintomi, pulsante "iniziate/finite oggi", scheda in Oggi (nascondibile) e promemoria locali prima delle mestruazioni, discreti di default.
 - **Database:** lo schema per Supabase è in `supabase/migrations/`, provato a ogni `npm test` su un Postgres in memoria (RLS, abbonamento, limiti, nessuna colonna in chiaro). Riassunto in [docs/SCHEMA.md](docs/SCHEMA.md). `npm run db:bundle` unisce le migrazioni in un file da incollare nello SQL Editor.
 
 ## Configurare Supabase
@@ -46,12 +56,23 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Vitest, Supabase 
 
 Per provare senza toccare il progetto online c'è Supabase sul PC (serve Docker Desktop): `npm run db:local`, poi `npm run dev:local-db` (app collegata a lui) e `npm run test:e2e` (sincronizzazione cifrata con account finti; per provare il cloud dall'app, il piano dell'account va messo a `pro` nel database del PC).
 
+## Frasi sponsorizzate
+
+Senza configurazione gli sponsor non esistono (nessun download, nessuna voce nelle impostazioni). Per attivarli:
+
+1. Crea le chiavi: `node scripts/sponsor-keys.mjs`. La chiave **privata** finisce in `~/.getcontrol/sponsor-private-key.json` (fuori dal progetto: mai su git né in chat; conservane una copia sicura). Lo script stampa la chiave **pubblica**.
+2. In `.env.local` (e in produzione): `NEXT_PUBLIC_SPONSOR_PUBLIC_KEY=<chiave pubblica>` e `NEXT_PUBLIC_SPONSOR_FEED_URL=https://…/sponsor-feed.json` (un hosting statico qualsiasi; l'indirizzo non può avere parametri).
+3. Scrivi gli slot come in `scripts/sponsor-slots.example.json` (massimo 10; `date` = il giorno in cui valgono; testo inglese obbligatorio, italiano consigliato; niente link) e firmali: `node scripts/sponsor-sign.mjs slot.json sponsor-feed.json`. Lo script rifiuta temi vietati e slot non validi.
+4. Pubblica `sponsor-feed.json` all'indirizzo scelto. L'app lo scarica (solo con il consenso, al massimo ogni 6 ore), verifica la firma e scarta gli slot con temi vietati anche se firmati.
+
 ## Aggiungere una lingua
 
-1. Copia `src/i18n/dictionaries/en.ts` in `<codice>.ts`, per esempio `es.ts`, e traduci i valori. Le chiavi e i segnaposto `{x}` restano uguali.
-2. Registrala in `src/i18n/dictionaries/index.ts` e in `LOCALES` / `LOCALE_NAMES` di `src/i18n/config.ts`.
-3. Aggiungi i testi della pagina offline in `public/sw.js` (`OFFLINE_TEXT`).
-4. Esegui `npm test`: segnala chiavi mancanti, testi vuoti e segnaposto diversi.
+1. Copia `src/i18n/dictionaries/en.ts` in `<codice>.ts` e traduci i valori. Le chiavi e i segnaposto `{x}` restano uguali; nei plurali metti le forme che la lingua usa (il test le chiede: vedi `Intl.PluralRules`).
+2. Registrala in `src/i18n/dictionaries/index.ts` e in `LOCALES` / `LOCALE_NAMES` di `src/i18n/config.ts` (se si scrive da destra a sinistra, anche in `RTL_LOCALES`).
+3. Traduci le frasi in `src/lib/quotes/texts/<codice>.ts` e aggiungi il file in `texts/index.ts` e nel test `quotes.test.ts`.
+4. Aggiungi le parole vietate della lingua in `src/lib/quotes/content-rules.ts` (TypeScript le chiede).
+5. Aggiungi i testi della pagina offline in `public/sw.js` (`OFFLINE_TEXT`) e alza `VERSION`.
+6. Esegui `npm test`: segnala chiavi mancanti, plurali incompleti, segnaposto diversi, frasi mancanti o con parole vietate.
 
 ## Comandi
 
@@ -93,6 +114,8 @@ supabase/migrations/    schema del database (Supabase), provato da src/lib/stora
 docs/SCHEMA.md          documentazione del database
 src/lib/supabase/       client Supabase nel browser e configurazione
 src/lib/crypto/         cifratura end-to-end: chiave dati, codice di recupero, chiave sul dispositivo
+src/lib/quotes/         Frasi del giorno: archivio, regole sui temi vietati, scelta, notifiche locali, sponsor firmati
+src/components/quotes/  scheda di Oggi, carta sponsor, impostazioni, programmazione delle notifiche
 src/lib/sync/           sincronizzazione telefono ↔ cloud cifrato (motore puro e testato, avvio, uscita con "togli i dati")
 ```
 
@@ -110,4 +133,4 @@ src/lib/sync/           sincronizzazione telefono ↔ cloud cifrato (motore puro
   - i dati salvati sono validati alla lettura;
   - i dati vanno nel cloud solo cifrati sul dispositivo: il gestore non può leggerli;
   - la RLS del database decide chi vede cosa: l'app usa solo la chiave pubblica;
-  - nessun servizio di terze parti oltre a Supabase (e solo con l'account).
+  - nessun servizio di terze parti oltre a Supabase (e solo con l'account) e al file firmato degli sponsor (solo con il consenso); nessuna analytics.

@@ -33,7 +33,7 @@ export function WallpaperButton() {
         aria-hidden="true"
       >
         <span
-          className="absolute right-1 bottom-1 size-4 rounded-full shadow-[0_0_0_1.5px_var(--bg)]"
+          className="absolute end-1 bottom-1 size-4 rounded-full shadow-[0_0_0_1.5px_var(--bg)]"
           style={{ background: paletteSwatch(paletteHex(background, palette)) }}
         />
       </span>
@@ -43,7 +43,7 @@ export function WallpaperButton() {
           {hydrated ? `${dict.settings.background.options[background].name} · ${t.palettes[palette]} · ${motion}` : t.open}
         </span>
       </span>
-      <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted rtl:-scale-x-100" aria-hidden="true">
         <path d="M9 5l7 7-7 7" />
       </svg>
     </Link>

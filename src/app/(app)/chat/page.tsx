@@ -25,7 +25,7 @@ export default async function ChatPage() {
           <span className="card relative mb-4 grid size-14 place-items-center rounded-full text-ink" aria-hidden="true">
             <IconChatIncognito width={28} height={28} />
             {locked && (
-              <span className="absolute -right-1 -bottom-1 grid size-6 place-items-center rounded-full bg-primary text-on-primary">
+              <span className="absolute -end-1 -bottom-1 grid size-6 place-items-center rounded-full bg-primary text-on-primary">
                 <IconLock width={14} height={14} strokeWidth={2.2} />
               </span>
             )}

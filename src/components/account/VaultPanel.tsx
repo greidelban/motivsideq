@@ -258,7 +258,7 @@ function Ready() {
             </div>
           </>
         ) : (
-          <button type="button" className="link flex min-h-11 items-center text-left text-subhead" onClick={() => setConfirmNew(true)}>
+          <button type="button" className="link flex min-h-11 items-center text-start text-subhead" onClick={() => setConfirmNew(true)}>
             {v.newCode}
           </button>
         )}

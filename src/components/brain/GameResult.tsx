@@ -87,7 +87,7 @@ function OperationTimes({ metrics }: { metrics: Record<string, number> }) {
             <span className="h-2 overflow-hidden rounded-full" aria-hidden="true">
               <span className="block h-full rounded-full bg-secondary" style={{ width: `${(ms / max) * 100}%` }} />
             </span>
-            <span className="num text-right text-subhead">
+            <span className="num text-end text-subhead">
               <span className="sr-only">{op} </span>
               {formatDuration(locale, ms)}
             </span>
@@ -164,13 +164,13 @@ export function GameResult({
         {detailRows(game, outcome, locale, dict).map(([k, v]) => (
           <div key={k} className="flex items-center justify-between gap-4 px-4 py-3 text-subhead">
             <dt className="text-muted">{k}</dt>
-            <dd className="num text-right">{v}</dd>
+            <dd className="num text-end">{v}</dd>
           </div>
         ))}
         {verdict.best !== null && previousCount > 0 && (
           <div className="flex items-center justify-between gap-4 px-4 py-3 text-subhead">
             <dt className="text-muted">{dict.mind.rows.personalBest}</dt>
-            <dd className="num text-right">
+            <dd className="num text-end">
               {formatScore(locale, game, verdict.best)} {g.unit}
             </dd>
           </div>

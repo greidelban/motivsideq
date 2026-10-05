@@ -2,7 +2,10 @@
 
 # Progetto GetControl: note per chi ci lavora
 
-- **Lingue:** l'inglese è la lingua base, l'italiano la prima traduzione, altre lingue arriveranno.
+- **Lingue:** l'inglese è la lingua base; poi italiano, spagnolo, francese, portoghese (Brasile), tedesco, polacco, russo, cinese semplificato, arabo, ebraico (5/10/2026). Le traduzioni sono mie: da far rivedere a madrelingua (DA_FARE.md sezione 6).
+  - plurali: oggetti con le forme CLDR della lingua (`zero/one/two/few/many/other`), il test controlla che ci siano; in russo e francese la forma `one` vale anche per 21/0, quindi contiene `{n}`;
+  - arabo ed ebraico da destra a sinistra: mai classi fisiche (`pl-`, `pr-`, `left-`, `right-`, `text-left`, `ml-`…), usare quelle logiche (`ps-`, `pe-`, `start-`, `end-`, `text-start`, `ms-`…); frecce direzionali con `rtl:-scale-x-100`; numeri e operazioni dei giochi in `dir="ltr"`;
+  - forme neutre rispetto al genere di chi legge dove la lingua lo permette (in polacco e russo niente passato rivolto a "tu"); in arabo maschile generico; in ebraico infinito (neutro) e, se serve, maschile generico;
   - Nessun testo visibile scritto nei componenti: tutto passa da `src/i18n/dictionaries/*.ts` (`useI18n()` nei client, `getI18n()` nei server component).
   - Le chiavi si aggiungono prima in `en.ts`; TypeScript e i test (`src/i18n/i18n.test.ts`) segnalano le traduzioni mancanti.
   - Numeri e durate si formattano con `src/i18n/format.ts`.
@@ -26,16 +29,27 @@
 - Il database: migrazioni in `supabase/migrations/`, si applicano incollando `npm run db:bundle` → `supabase/setup-completo.sql` nello SQL Editor. Ogni nuova migrazione va provata in `src/lib/storage/schema.test.ts`.
 - Priorità: migliorare e perfezionare l'app.
 - Ordine dei moduli:
-  - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n en/it ✅, luce viva + Accendi ✅, Salute prima versione ✅ (profilo nelle Impostazioni, Allenamento per tipi, Cibo a inserimento manuale, Ciclo);
+  - fatti: struttura ✅, Mente (giochi del mattino, con tempi di risposta) ✅, i18n in 11 lingue ✅, luce viva + Accendi ✅, Salute prima versione ✅ (profilo nelle Impostazioni, Allenamento per tipi, Cibo a inserimento manuale, Ciclo), Frasi del giorno ✅ (notifiche locali pronte per l'app nativa, sponsor firmati);
   - **fase 2** (piano approvato dall'utente): A1 dati pronti al cloud ✅ → E ciclo solo per le donne ✅ → A2 Supabase (account, sincronizzazione, export, blocco app) → check-in giornaliero → B ciclo → D allenamento → C alimentazione;
   - dopo: onboarding (locale), diario completo, insight.
 - **Salute** (`/health/*`, logica in `src/lib/health/` e `src/lib/profile/`): Palestra e Cibo sono confluiti qui insieme al Ciclo; nella barra in basso c'è solo "Salute".
   - stime: metabolismo Mifflin-St Jeor × attività; kcal degli allenamenti = MET × peso × ore;
   - ciclo: metodo del calendario, solo maggiorenni, consenso con la versione dell'informativa (`CYCLE_POLICY_VERSION`), dati cancellabili davvero;
+  - ciclo, uso quotidiano (5/10/2026): calendario del mese (`cycle-calendar.ts`: registrato, previsto da oggi in poi, finestra fertile e ovulazione del ciclo in corso e dei prossimi), tocco su un giorno → `togglePeriodDay` (allunga, accorcia, unisce, crea con la durata media; mai giorni futuri), flusso e sintomi di qualsiasi giorno passato, pulsante rapido "iniziato/finito oggi", scheda in Oggi (`CycleTodayCard`, nascondibile);
+  - promemoria del ciclo: notifiche locali (`cycle-reminders.ts`, id 72000-72009, canale Android `cycle-reminders` privato), DISCRETI di default (titolo = nome dell'app, testo "Un promemoria per te"); preferenze in localStorage (`cycle-prefs.ts`), azzerate quando si cancellano i dati del ciclo;
   - il Ciclo esiste solo se `canUseCycle(profile, consent)` (`src/lib/health/cycle-access.ts`) non dice "hidden", cioè con sesso femmina: menu, schermate, schede e insight passano tutti da lì;
   - se il sesso cambia da femmina si chiede se conservare (in pausa) o cancellare i dati: mai cancellarli da soli;
   - nel cloud i dati della salute viaggiano cifrati come tutto il resto (vedi sopra); riassunto dello schema in `docs/SCHEMA.md`.
 - **Chat in incognito** (`/chat`, tasto a sinistra delle Impostazioni in Oggi, icona: fumetto tratteggiato): solo la schermata, senza motore (vedi i divieti sotto). Ha un lucchetto finché il piano non la include (`chat: ["pro"]` in `src/lib/entitlements.ts`).
+- **Frasi del giorno** (`src/lib/quotes/`, `src/components/quotes/`, pagina `/settings/quotes`; deciso con l'utente il 5/10/2026):
+  - archivio: id/categoria/tono in `archive.ts` (contatori per cella), testi in `texts/<lingua>.ts` caricati a parte (`loadQuoteTexts`, `useQuoteTexts`); una frase nuova va in coda alla sua cella e in TUTTI i file di testo; deve passare `content-rules.ts` in ogni lingua (cinese: ricerca nel testo; arabo ed ebraico: con articolo/congiunzioni/preposizioni attaccati);
+  - personalità decisa dal proprietario: un po' aggressiva, ironica, sfacciata (es. "Gne gne", "Womp womp"); tono di partenza "Diretto". Restano vietati: corpo, peso, aspetto fisico, cibo, calorie, ciclo, insulti a chi legge, umiliazioni di gruppi, dati personali; forme neutre rispetto al genere;
+  - notifiche SOLO locali (Capacitor LocalNotifications, letto da `window.Capacitor` via `src/lib/native.ts`; funzioni comuni in `src/lib/notifications.ts`, ogni funzione tocca solo il suo intervallo di id): niente token push né server; al massimo `QUOTE_NOTIFICATION_BUDGET` (50) in attesa per stare sotto le 64 di iOS (il resto è per i promemoria, es. ciclo); id 71000-71999 riservati alle frasi; mai dati personali nel testo;
+  - preferenze, consenso sponsor e registro degli sponsor solo in localStorage (`store.ts`), mai nel cloud né nel backup;
+  - sponsor: file firmato ECDSA P-256 (`sponsor.ts`), indirizzo e chiave pubblica in `NEXT_PUBLIC_SPONSOR_FEED_URL` / `NEXT_PUBLIC_SPONSOR_PUBLIC_KEY` (senza, gli sponsor non esistono); chiave privata fuori dal progetto (`scripts/sponsor-keys.mjs`, firma con `scripts/sponsor-sign.mjs`); max 10 slot da un giorno; download solo con il consenso;
+  - consenso sponsor: casella mai preselezionata, versione del testo in `SPONSOR_CONSENT_VERSION` (se il testo cambia, alzarla: il consenso va richiesto di nuovo); vale anche per la carta in Oggi;
+  - limiti: 1 notifica sponsorizzata ogni 7 giorni in totale, 1 ogni 30 giorni per sponsor; titolo "Sponsorizzato · Marca", canale Android `sponsored-quotes`; la notifica sponsor prende il posto della prima frase del giorno;
+  - la carta sponsor sta SOLO in Oggi (`placement.test.ts` lo controlla), mai in Ciclo, Cibo, Allenamento o peso; niente link verso gli sponsor.
 - **Velocità e offline** (punto 4 della revisione, 4/10/2026):
   - zod solo nella versione leggera: `import * as z from "zod/mini"` (con `import { z } from "zod"` o `{ z }` il pacchetto torna da 72 a 390 kB); per gli schemi generici `z.core.$ZodType` e `z.safeParse(schema, valore)`;
   - Supabase si carica solo quando serve: `loadSupabase()` / `whenSupabaseLoaded()` (`src/lib/supabase/client.ts`), mai importare `@supabase/supabase-js` come valore altrove;
@@ -73,4 +87,4 @@
 - Regole di stile:
   - vetro solo per la cornice, card piatte dentro;
   - viola per i riempimenti, ciano per testi e link colorati.
-- Vietati: API di database alimentari, AI/LLM, analytics di terze parti. Stripe e AI solo predisposti.
+- Vietati: API di database alimentari, AI/LLM, analytics di terze parti (anche per gli sponsor: niente conteggi di visualizzazioni o clic), notifiche push da server. Stripe e AI solo predisposti.

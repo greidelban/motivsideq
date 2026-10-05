@@ -105,14 +105,15 @@ export const IconTrash = (p: IconProps) => (
   </Icon>
 );
 
+// Frecce di direzione: in una lingua da destra a sinistra si specchiano.
 export const IconChevronLeft = (p: IconProps) => (
-  <Icon {...p}>
+  <Icon {...p} className={`rtl:-scale-x-100 ${p.className ?? ""}`}>
     <path d="M15 5l-7 7 7 7" />
   </Icon>
 );
 
 export const IconChevronRight = (p: IconProps) => (
-  <Icon {...p}>
+  <Icon {...p} className={`rtl:-scale-x-100 ${p.className ?? ""}`}>
     <path d="M9 5l7 7-7 7" />
   </Icon>
 );

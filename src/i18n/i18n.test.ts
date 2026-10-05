@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isLocale, matchLocale } from "./config";
+import { LOCALES, isLocale, matchLocale } from "./config";
+import { DICTIONARIES } from "./dictionaries";
 import { en } from "./dictionaries/en";
-import { it as itDict } from "./dictionaries/it";
 import { formatBytes, formatDuration, formatNumber, interpolate, plural } from "./format";
 
 describe("matchLocale", () => {
   it("usa la prima lingua supportata in ordine di preferenza", () => {
     expect(matchLocale("it-IT,it;q=0.9,en;q=0.8")).toBe("it");
-    expect(matchLocale("fr-FR,fr;q=0.9,it;q=0.8,en;q=0.7")).toBe("it");
-    expect(matchLocale("de-DE,en-US;q=0.5")).toBe("en");
+    expect(matchLocale("nl-NL,nl;q=0.9,it;q=0.8,en;q=0.7")).toBe("it");
+    expect(matchLocale("fr-FR,fr;q=0.9,it;q=0.8")).toBe("fr");
+    expect(matchLocale("pt-BR,pt;q=0.9")).toBe("pt");
+    expect(matchLocale("zh-CN,zh;q=0.9")).toBe("zh");
+    expect(matchLocale("ar-EG")).toBe("ar");
+    expect(matchLocale("he-IL,he;q=0.9")).toBe("he");
+    expect(matchLocale("sv-SE,en-US;q=0.5")).toBe("en");
   });
 
   it("rispetta i pesi q anche se l'ordine è diverso", () => {
@@ -16,7 +21,7 @@ describe("matchLocale", () => {
   });
 
   it("torna all'inglese se non c'è nulla di supportato", () => {
-    expect(matchLocale("ja,zh;q=0.5")).toBe("en");
+    expect(matchLocale("ja,ko;q=0.5")).toBe("en");
     expect(matchLocale(null)).toBe("en");
     expect(matchLocale("")).toBe("en");
     expect(matchLocale("it;q=0")).toBe("en");
@@ -58,37 +63,54 @@ describe("format", () => {
 });
 
 describe("dizionari", () => {
-  // Ricorsivo: stesse chiavi e nessun testo vuoto in ogni lingua.
-  function keys(obj: object, prefix = ""): string[] {
+  const PLURAL_KEYS = new Set(["zero", "one", "two", "few", "many", "other"]);
+  const isPlural = (v: object) => "other" in v && Object.keys(v).every((k) => PLURAL_KEYS.has(k));
+
+  // Testi "piatti": chiave → valore; i plurali restano oggetti.
+  function flat(obj: object, prefix = ""): [string, unknown][] {
     return Object.entries(obj).flatMap(([k, v]) =>
-      typeof v === "object" && v !== null ? keys(v, `${prefix}${k}.`) : [`${prefix}${k}`],
+      typeof v === "object" && v !== null && !isPlural(v) ? flat(v, `${prefix}${k}.`) : [[`${prefix}${k}`, v] as [string, unknown]],
     );
   }
-  function values(obj: object): unknown[] {
-    return Object.values(obj).flatMap((v) => (typeof v === "object" && v !== null ? values(v) : [v]));
-  }
+  const placeholders = (s: string) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort().join(",");
+  const others = LOCALES.filter((l) => l !== "en");
+  const enFlat = new Map(flat(en));
 
-  it("l'italiano ha esattamente le chiavi dell'inglese", () => {
-    expect(keys(itDict).sort()).toEqual(keys(en).sort());
+  it.each(others)("%s ha esattamente le chiavi dell'inglese", (locale) => {
+    expect(flat(DICTIONARIES[locale]).map(([k]) => k).sort()).toEqual([...enFlat.keys()].sort());
   });
 
-  it("nessuna traduzione vuota", () => {
-    for (const dict of [en, itDict]) {
-      for (const v of values(dict)) expect(typeof v === "string" && v.trim().length > 0).toBe(true);
+  it.each(LOCALES)("%s: nessun testo vuoto", (locale) => {
+    for (const [key, v] of flat(DICTIONARIES[locale])) {
+      const texts = typeof v === "string" ? [v] : Object.values(v as object);
+      for (const t of texts) expect(typeof t === "string" && t.trim().length > 0, `${locale} ${key}`).toBe(true);
     }
   });
 
-  it("gli stessi segnaposto {x} in ogni traduzione", () => {
-    const placeholders = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join(",");
-    const flat = (obj: object, prefix = ""): [string, string][] =>
-      Object.entries(obj).flatMap(([k, v]) =>
-        typeof v === "object" && v !== null ? flat(v, `${prefix}${k}.`) : [[`${prefix}${k}`, String(v)]],
-      );
-    const itMap = new Map(flat(itDict));
-    for (const [key, value] of flat(en)) {
-      // Nelle forme plurali la forma "one" può omettere {n} ("un giorno").
-      if (key.endsWith(".one")) continue;
-      expect(`${key}: ${placeholders(itMap.get(key) ?? "")}`).toBe(`${key}: ${placeholders(value)}`);
+  it.each(LOCALES)("%s: i plurali hanno le forme che la lingua usa", (locale) => {
+    const rules = new Intl.PluralRules(locale);
+    for (const [key, v] of flat(DICTIONARIES[locale])) {
+      if (typeof v === "string") continue;
+      for (let n = 0; n <= 120; n++) {
+        const rule = rules.select(n);
+        expect(rule in (v as object), `${locale} ${key}: manca "${rule}" (n = ${n})`).toBe(true);
+      }
+    }
+  });
+
+  it.each(others)("%s usa gli stessi segnaposto {x} dell'inglese", (locale) => {
+    for (const [key, v] of flat(DICTIONARIES[locale])) {
+      const base = enFlat.get(key);
+      if (typeof v === "string") {
+        expect(`${key}: ${placeholders(v)}`).toBe(`${key}: ${placeholders(base as string)}`);
+      } else {
+        // Nei plurali le forme possono omettere {n} ("un giorno"), ma non inventarne altri.
+        const allowed = new Set([...(placeholders((base as { other: string }).other).split(",")), "{n}"]);
+        for (const form of Object.values(v as object) as string[]) {
+          for (const p of form.match(/\{\w+\}/g) ?? []) expect(allowed.has(p), `${locale} ${key}: ${p}`).toBe(true);
+        }
+        expect(placeholders((v as { other: string }).other), `${locale} ${key}.other`).toBe(placeholders((base as { other: string }).other));
+      }
     }
   });
 });

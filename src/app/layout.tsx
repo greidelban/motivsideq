@@ -4,16 +4,20 @@ import { JetBrains_Mono, Onest } from "next/font/google";
 import { LivingLight } from "@/components/light/LivingLight";
 import { MotionSync } from "@/components/light/MotionSync";
 import { SyncRunner } from "@/components/account/SyncRunner";
+import { CycleReminderScheduler } from "@/components/health/CycleReminderScheduler";
+import { QuoteScheduler } from "@/components/quotes/QuoteScheduler";
 import { SaveErrorBanner } from "@/components/SaveErrorBanner";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { I18nProvider } from "@/i18n/client";
+import { localeDir } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import { APP_NAME, THEME_COLOR } from "@/lib/app";
 import "./globals.css";
 
-const onest = Onest({ subsets: ["latin", "latin-ext"], variable: "--font-onest", display: "swap" });
+// Cirillico per il russo; cinese e arabo usano i caratteri di sistema (fallback in globals.css).
+const onest = Onest({ subsets: ["latin", "latin-ext", "cyrillic"], variable: "--font-onest", display: "swap" });
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   variable: "--font-jetbrains-mono",
   display: "swap",
   preload: false,
@@ -45,13 +49,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { locale, dict } = await getI18n();
 
   return (
-    <html lang={locale} className={`${onest.variable} ${jetbrainsMono.variable}`}>
+    <html lang={locale} dir={localeDir(locale)} className={`${onest.variable} ${jetbrainsMono.variable}`}>
       <body>
         <MotionSync />
         <LivingLight />
         <I18nProvider locale={locale} dict={dict}>
           {children}
           <SaveErrorBanner />
+          <QuoteScheduler />
+          <CycleReminderScheduler />
         </I18nProvider>
         <ServiceWorkerRegister />
         <SyncRunner />

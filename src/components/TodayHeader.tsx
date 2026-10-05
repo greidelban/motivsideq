@@ -34,7 +34,7 @@ export function TodayHeader() {
           <Link href="/chat" aria-label={chatLocked ? dict.chat.openLocked : dict.chat.open} className={`${ROUND_BUTTON} relative`}>
             <IconChatIncognito width={21} height={21} />
             {chatLocked && (
-              <span className="absolute -right-0.5 -bottom-0.5 grid size-[18px] place-items-center rounded-full bg-primary text-on-primary">
+              <span className="absolute -end-0.5 -bottom-0.5 grid size-[18px] place-items-center rounded-full bg-primary text-on-primary">
                 <IconLock width={11} height={11} strokeWidth={2.4} />
               </span>
             )}

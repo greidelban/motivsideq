@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WakeUpCard } from "@/components/brain/WakeUpCard";
+import { CycleTodayCard } from "@/components/health/CycleTodayCard";
 import { IconChevronRight } from "@/components/icons";
+import { QuoteCard } from "@/components/quotes/QuoteCard";
+import { SponsorCard } from "@/components/quotes/SponsorCard";
 import { TodayHeader } from "@/components/TodayHeader";
 import { Panel } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -23,7 +26,9 @@ export default async function TodayPage() {
     <>
       <TodayHeader />
       <div className="space-y-3">
+        <QuoteCard />
         <WakeUpCard hideWhenDone />
+        <CycleTodayCard />
         {SECTIONS.map(({ href, key }) => (
           <Link key={href} href={href} className="block">
             {/* La freccia dice che la scheda si apre (come nelle liste di iOS). */}
@@ -36,6 +41,8 @@ export default async function TodayPage() {
             </Panel>
           </Link>
         ))}
+        {/* Unico posto dell'app con la carta sponsor (solo col consenso, solo per un giorno). */}
+        <SponsorCard />
       </div>
     </>
   );

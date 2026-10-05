@@ -2,7 +2,7 @@
 // dizionari e si usa quando la lingua del browser non è disponibile.
 // Per aggiungere una lingua: un nuovo file in ./dictionaries, il codice qui
 // sotto e il nome in LOCALE_NAMES. TypeScript segnala le traduzioni mancanti.
-export const LOCALES = ["en", "it"] as const;
+export const LOCALES = ["en", "it", "es", "fr", "pt", "de", "pl", "ru", "zh", "ar", "he"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 const DEFAULT_LOCALE: Locale = "en";
@@ -12,7 +12,23 @@ export const LOCALE_COOKIE = "ritmo-locale";
 export const LOCALE_NAMES: Record<Locale, string> = {
   en: "English",
   it: "Italiano",
+  es: "Español",
+  fr: "Français",
+  pt: "Português",
+  de: "Deutsch",
+  pl: "Polski",
+  ru: "Русский",
+  zh: "中文",
+  ar: "العربية",
+  he: "עברית",
 };
+
+/** Lingue scritte da destra a sinistra: la pagina usa dir="rtl" e le classi logiche (ps/pe, start/end). */
+const RTL_LOCALES: readonly Locale[] = ["ar", "he"];
+
+export function localeDir(locale: Locale): "ltr" | "rtl" {
+  return RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
+}
 
 export function isLocale(value: unknown): value is Locale {
   return typeof value === "string" && (LOCALES as readonly string[]).includes(value);

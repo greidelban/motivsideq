@@ -11,7 +11,7 @@
 //    lingua; i file delle versioni vecchie si tolgono.
 // Mai in cache: altri siti (Supabase), richieste non GET, indirizzi con parametri.
 
-const VERSION = "v2";
+const VERSION = "v5";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const SIGNATURE = "/__sw-signature";
@@ -32,6 +32,7 @@ const ROUTES = [
   "/health/cycle",
   "/settings",
   "/settings/wallpaper",
+  "/settings/quotes",
   "/chat",
   "/privacy",
 ];
@@ -40,13 +41,22 @@ const ROUTES = [
 const OFFLINE_TEXT = {
   en: { lang: "en", title: "You are offline", body: "This page isn't saved on this device yet. Check your connection and try again.", retry: "Try again" },
   it: { lang: "it", title: "Sei offline", body: "Questa pagina non è ancora salvata su questo dispositivo. Controlla la connessione e riprova.", retry: "Riprova" },
+  es: { lang: "es", title: "Sin conexión", body: "Esta página aún no está guardada en este dispositivo. Revisa la conexión y vuelve a intentarlo.", retry: "Reintentar" },
+  fr: { lang: "fr", title: "Hors ligne", body: "Cette page n'est pas encore enregistrée sur cet appareil. Vérifie la connexion et réessaie.", retry: "Réessayer" },
+  pt: { lang: "pt", title: "Sem conexão", body: "Esta página ainda não está salva neste dispositivo. Verifique a conexão e tente de novo.", retry: "Tentar de novo" },
+  de: { lang: "de", title: "Du bist offline", body: "Diese Seite ist auf diesem Gerät noch nicht gespeichert. Prüf die Verbindung und versuch es noch einmal.", retry: "Erneut versuchen" },
+  pl: { lang: "pl", title: "Brak połączenia", body: "Ta strona nie jest jeszcze zapisana na tym urządzeniu. Sprawdź połączenie i spróbuj ponownie.", retry: "Spróbuj ponownie" },
+  ru: { lang: "ru", title: "Нет сети", body: "Эта страница ещё не сохранена на этом устройстве. Проверь подключение и попробуй снова.", retry: "Повторить" },
+  zh: { lang: "zh", title: "你已离线", body: "这个页面还没有保存在本设备上。请检查网络后重试。", retry: "重试" },
+  he: { lang: "he", dir: "rtl", title: "אין חיבור", body: "הדף הזה עוד לא שמור במכשיר הזה. כדאי לבדוק את החיבור ולנסות שוב.", retry: "לנסות שוב" },
+  ar: { lang: "ar", dir: "rtl", title: "أنت غير متصل", body: "هذه الصفحة غير محفوظة على هذا الجهاز بعد. تحقق من الاتصال وحاول مجددًا.", retry: "إعادة المحاولة" },
 };
 
 function offlineHtml() {
   const lang = (self.navigator.language || "en").slice(0, 2);
   const t = OFFLINE_TEXT[lang] || OFFLINE_TEXT.en;
   return `<!doctype html>
-<html lang="${t.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="${t.lang}" dir="${t.dir || "ltr"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${t.title}</title>
 <style>
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0e1a;color:#f5f1e6;font:17px/1.4 system-ui,sans-serif;text-align:center;padding:24px}

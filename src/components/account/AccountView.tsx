@@ -96,7 +96,7 @@ function WipeDevice() {
 
   if (step === "idle") {
     return (
-      <button type="button" className="link mt-4 flex min-h-11 items-center text-left text-subhead" onClick={() => setStep("confirm")}>
+      <button type="button" className="link mt-4 flex min-h-11 items-center text-start text-subhead" onClick={() => setStep("confirm")}>
         {t.open}
       </button>
     );

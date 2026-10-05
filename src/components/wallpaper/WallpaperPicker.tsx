@@ -40,7 +40,7 @@ export function WallpaperPicker() {
                 appearance.set((s) => ({ ...s, background: id }));
                 pulseLight(0.4);
               }}
-              className="flex flex-col gap-1.5 text-left"
+              className="flex flex-col gap-1.5 text-start"
             >
               <span
                 className={`block aspect-square w-full rounded-lg transition-shadow duration-150 ${

@@ -106,7 +106,7 @@
   --color-card: var(--card-bg);
   --color-control: var(--control-bg);
 
-  --font-sans: var(--font-onest), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-onest), system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Geeza Pro", "Noto Sans Arabic", "Arial Hebrew", "Noto Sans Hebrew", sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   --radius-xs: 6px;
@@ -371,6 +371,17 @@ body::before {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+  /* Arabo e cinese: niente font monospaziato né spaziatura tra le lettere
+     (in arabo spezzerebbe le lettere legate). */
+  :lang(ar) .eyebrow,
+  :lang(he) .eyebrow,
+  :lang(zh) .eyebrow {
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+  }
+  :lang(ar) * {
+    letter-spacing: 0 !important;
   }
   /* Fuori dal vetro, sopra la luce, un testo così piccolo non basta con l'ombra:
      colore secondario e un velo scuro sfumato appena dietro (contrasto ≥ 4.5 anche

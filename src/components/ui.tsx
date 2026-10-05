@@ -23,7 +23,7 @@ export function PageHeader({
           aria-label={back.label}
           className="glass-clear mb-0.5 grid size-11 shrink-0 place-items-center rounded-full text-ink-2 hover:text-ink"
         >
-          <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
             <path d="M15 5l-7 7 7 7" />
           </svg>
         </Link>

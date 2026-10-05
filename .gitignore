@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Migrazioni unite per lo SQL Editor (si rigenera con npm run db:bundle)
 supabase/setup-completo.sql
+
+# File sponsor firmato (si pubblica altrove, si rigenera con scripts/sponsor-sign.mjs)
+sponsor-feed.json

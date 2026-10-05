@@ -194,6 +194,66 @@ export function endPeriod(periods: readonly Period[], day: string): Period[] | n
   return sorted.map((p) => (p.id === target.id ? { ...p, end: day } : p));
 }
 
+/** Ultimo giorno di una mestruazione: quello registrato, o stimato (mai oltre oggi). */
+export function effectiveEnd(period: Period, periodLength: number, today: string): string {
+  if (period.end !== undefined) return period.end;
+  const estimated = addDays(period.start, periodLength - 1);
+  return estimated < today ? estimated : today < period.start ? period.start : today;
+}
+
+type Span = { id: string; start: string; end: string; open: boolean };
+
+/**
+ * Segna o toglie un giorno di mestruazione (tocco sul calendario).
+ * - Un giorno già segnato: se è il primo, la mestruazione parte dal giorno dopo;
+ *   altrimenti finisce il giorno prima (un giorno da solo sparisce).
+ * - Un giorno libero accanto a una mestruazione la allunga (e ne unisce due se le tocca).
+ * - Un giorno libero isolato ne crea una nuova con la durata media (senza
+ *   superare oggi né la mestruazione successiva); se arriva a oggi resta "in corso".
+ * I giorni futuri non si toccano (null).
+ */
+export function togglePeriodDay(periods: readonly Period[], day: string, today: string, newId: string): Period[] | null {
+  if (day > today) return null;
+  const { periodLength } = cycleStats(periods);
+  const spans: Span[] = sortPeriods(periods).map((p) => ({
+    id: p.id,
+    start: p.start,
+    end: effectiveEnd(p, periodLength, today),
+    open: p.end === undefined,
+  }));
+
+  const inside = spans.find((s) => day >= s.start && day <= s.end);
+  if (inside) {
+    if (inside.start === inside.end) spans.splice(spans.indexOf(inside), 1);
+    else if (day === inside.start) inside.start = addDays(day, 1);
+    else {
+      inside.end = addDays(day, -1);
+      inside.open = false;
+    }
+  } else {
+    const before = spans.find((s) => s.end === addDays(day, -1));
+    const after = spans.find((s) => s.start === addDays(day, 1));
+    if (before && after) {
+      before.end = after.end;
+      before.open = after.open;
+      spans.splice(spans.indexOf(after), 1);
+    } else if (before) {
+      before.end = day;
+      before.open = day === today;
+    } else if (after) {
+      after.start = day;
+    } else {
+      const nextStart = spans.find((s) => s.start > day)?.start;
+      let end = addDays(day, periodLength - 1);
+      if (nextStart && end >= nextStart) end = addDays(nextStart, -1);
+      if (end > today) end = today;
+      spans.push({ id: newId, start: day, end, open: end === today && !nextStart });
+    }
+  }
+
+  return sortPeriods(spans.map((s) => (s.open ? { id: s.id, start: s.start } : { id: s.id, start: s.start, end: s.end })));
+}
+
 export function toggleSymptom(logs: readonly DayLog[], day: string, symptom: Symptom): DayLog[] {
   const existing = logs.find((l) => l.day === day) ?? { day, symptoms: [] };
   const symptoms = existing.symptoms.includes(symptom)

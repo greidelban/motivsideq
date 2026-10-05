@@ -6,6 +6,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocalDataPanel } from "@/components/LocalDataPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
+import { QuotesButton } from "@/components/quotes/QuotesButton";
 import { PageHeader, Panel } from "@/components/ui";
 import { WallpaperButton } from "@/components/wallpaper/WallpaperButton";
 import { getI18n } from "@/i18n/server";
@@ -24,6 +25,7 @@ export default async function SettingsPage() {
       <div className="space-y-4">
         <AccountPanel />
         <ProfilePanel />
+        <QuotesButton />
         <WallpaperButton />
         <LanguagePicker />
         <LocalDataPanel />

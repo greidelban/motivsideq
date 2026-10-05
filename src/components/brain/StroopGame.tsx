@@ -85,7 +85,7 @@ export function StroopGame({ onFinish }: GameComponentProps) {
         <span className="num">
           {interpolate(t.progress, { i: Math.min(answers.length + 1, STROOP_TRIALS), n: STROOP_TRIALS })}
         </span>
-        <span className={`ml-3 ${wrong ? "text-error" : "invisible"}`} aria-live="polite">
+        <span className={`ms-3 ${wrong ? "text-error" : "invisible"}`} aria-live="polite">
           {wrong ? t.wrong : "·"}
         </span>
       </p>

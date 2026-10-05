@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
 import { interpolate, plural } from "@/i18n/format";
-import { addDays, daysBetween, localDateKey } from "@/lib/dates";
+import { daysBetween, localDateKey } from "@/lib/dates";
 import {
   type CycleStatus,
   FLOWS,
@@ -16,14 +16,19 @@ import {
   setFlow,
   sortPeriods,
   startPeriod,
+  togglePeriodDay,
   toggleSymptom,
 } from "@/lib/health/cycle";
+import { cycleCalendar } from "@/lib/health/cycle-calendar";
 import { cycleConsent, cycleDayLogs, cyclePeriods, deleteCycleData } from "@/lib/health/store";
 import { canUseCycle } from "@/lib/health/cycle-access";
 import { CYCLE_POLICY_VERSION } from "@/lib/legal";
 import { profile } from "@/lib/profile/store";
 import { useLocalData } from "@/lib/storage/db";
 import { Chip, ChipGroup, Notice } from "./Chip";
+import { CycleCalendar } from "./CycleCalendar";
+import { CycleReminders } from "./CycleReminders";
+import { nextPeriodLabel } from "./cycle-labels";
 import { DeleteButton, useShortDate } from "./shared";
 
 export function CycleView() {
@@ -107,23 +112,39 @@ function Tracker() {
   const { locale, dict } = useI18n();
   const t = dict.health.cycle;
   const periods = cyclePeriods.use();
+  const logs = cycleDayLogs.use();
   const today = localDateKey();
   const status = cycleStatus(periods, today);
+  const marks = cycleCalendar(periods, logs, status, today);
+  const [selected, setSelected] = useState(today);
   const shortDate = useShortDate();
+  const dayRef = useRef<HTMLElement>(null);
+
+  // Il giorno toccato si apre sotto il calendario: se è fuori schermo, ci si scorre.
+  function select(day: string) {
+    setSelected(day);
+    requestAnimationFrame(() => {
+      const el = dayRef.current;
+      if (!el || el.getBoundingClientRect().top < window.innerHeight * 0.6) return;
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    });
+  }
 
   return (
     <>
       {status ? (
-        <StatusPanel status={status} />
+        <StatusPanel status={status} today={today} todayIsPeriod={marks.get(today)?.period === "logged"} />
       ) : (
         <Panel>
           <h2 className="mb-2 text-headline font-semibold">{t.empty.title}</h2>
           <p className="text-subhead text-ink-2">{t.empty.text}</p>
+          <QuickStart today={today} />
         </Panel>
       )}
 
-      <LogPeriod today={today} />
-      {status && <TodayLog today={today} />}
+      <CycleCalendar marks={marks} today={today} selected={selected} onSelect={select} />
+      <DayPanel ref={dayRef} day={selected} today={today} isPeriod={marks.get(selected)?.period === "logged"} />
 
       {status && (
         <Panel>
@@ -157,12 +178,13 @@ function Tracker() {
               .map((p) => {
                 const ongoing = p.end === undefined && status?.currentStart === p.start && status.periodOpen;
                 return (
-                  <li key={p.id} className="card flex items-center gap-3 py-2 pr-1.5 pl-4">
-                    <p className="min-w-0 flex-1 text-subhead">
+                  <li key={p.id} className="card flex items-center gap-3 py-2 pe-1.5 ps-4">
+                    {/* Toccando una mestruazione la si apre nel calendario, per correggerla. */}
+                    <button type="button" className="min-h-11 min-w-0 flex-1 text-start text-subhead" onClick={() => select(p.start)}>
                       {shortDate(p.start)}
                       {p.end && ` – ${shortDate(p.end)}`}
                       {ongoing && <span className="text-muted"> · {t.history.ongoing}</span>}
-                    </p>
+                    </button>
                     {p.end && <p className="num text-footnote text-muted">{plural(locale, daysBetween(p.start, p.end) + 1, t.stats.days)}</p>}
                     <DeleteButton
                       label={interpolate(t.history.delete, { date: shortDate(p.start) })}
@@ -175,21 +197,16 @@ function Tracker() {
         </Panel>
       )}
 
+      <CycleReminders />
       <RemoveAll />
     </>
   );
 }
 
-function StatusPanel({ status }: { status: CycleStatus }) {
+function StatusPanel({ status, today, todayIsPeriod }: { status: CycleStatus; today: string; todayIsPeriod: boolean }) {
   const { locale, dict } = useI18n();
   const t = dict.health.cycle.status;
   const shortDate = useShortDate();
-  const next =
-    status.daysUntilNext > 0
-      ? plural(locale, status.daysUntilNext, t.nextIn)
-      : status.daysUntilNext === 0
-        ? t.nextToday
-        : plural(locale, -status.daysUntilNext, t.late);
 
   return (
     <Panel>
@@ -197,17 +214,51 @@ function StatusPanel({ status }: { status: CycleStatus }) {
       <h2 className="text-title2 font-bold">{t.phases[status.phase]}</h2>
       <p className="mt-1 text-subhead text-ink-2">{t.phaseText[status.phase]}</p>
       <CycleBar status={status} />
-      <p className="mt-4 text-headline font-semibold">{next}</p>
+      <p className="mt-4 text-headline font-semibold">{nextPeriodLabel(locale, dict, status)}</p>
       <ul className="mt-1 space-y-0.5 text-footnote text-muted">
         {status.daysUntilNext > 0 && <li>{interpolate(t.nextDate, { date: shortDate(status.nextStart) })}</li>}
-        {status.phase !== "late" && status.ovulation >= localDateKey() && (
+        {status.phase !== "late" && status.ovulation >= today && (
           <>
             <li>{interpolate(t.fertile, { from: shortDate(status.fertileStart), to: shortDate(status.fertileEnd) })}</li>
             <li>{interpolate(t.ovulation, { date: shortDate(status.ovulation) })}</li>
           </>
         )}
       </ul>
+      {status.periodOpen ? <QuickEnd today={today} /> : !todayIsPeriod && <QuickStart today={today} />}
     </Panel>
+  );
+}
+
+/** "Sono iniziate oggi": un tocco, senza scegliere date. */
+function QuickStart({ today }: { today: string }) {
+  const { dict } = useI18n();
+  return (
+    <button
+      type="button"
+      className="btn btn-primary mt-4 w-full"
+      onClick={() => {
+        const result = startPeriod(cyclePeriods.get(), today, today, crypto.randomUUID());
+        if (result.ok) cyclePeriods.set(result.periods);
+      }}
+    >
+      {dict.health.cycle.quick.started}
+    </button>
+  );
+}
+
+function QuickEnd({ today }: { today: string }) {
+  const { dict } = useI18n();
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost mt-4 w-full"
+      onClick={() => {
+        const next = endPeriod(cyclePeriods.get(), today);
+        if (next) cyclePeriods.set(next);
+      }}
+    >
+      {dict.health.cycle.quick.ended}
+    </button>
   );
 }
 
@@ -244,79 +295,52 @@ function CycleBar({ status }: { status: CycleStatus }) {
   );
 }
 
-function LogPeriod({ today }: { today: string }) {
-  const { dict } = useI18n();
-  const t = dict.health.cycle.actions;
-  const [day, setDay] = useState(today);
-  const [error, setError] = useState<keyof typeof t.errors | null>(null);
-
-  function start() {
-    const result = startPeriod(cyclePeriods.get(), day, today, crypto.randomUUID());
-    if (!result.ok) return setError(result.reason);
-    cyclePeriods.set(result.periods);
-    setError(null);
-  }
-
-  function end() {
-    if (day > today) return setError("future");
-    const next = endPeriod(cyclePeriods.get(), day);
-    if (!next) return setError("noPeriod");
-    cyclePeriods.set(next);
-    setError(null);
-  }
-
-  return (
-    <Panel>
-      <label htmlFor="cycle-day" className="label">
-        {t.date}
-      </label>
-      <input
-        id="cycle-day"
-        type="date"
-        className="field"
-        value={day}
-        max={today}
-        min={addDays(today, -730)}
-        onChange={(e) => {
-          setDay(e.target.value);
-          setError(null);
-        }}
-      />
-      <div className="mt-3 grid gap-2">
-        <button type="button" className="btn btn-primary" onClick={start}>
-          {t.start}
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={end}>
-          {t.end}
-        </button>
-      </div>
-      {error && <Notice tone="error">{t.errors[error]}</Notice>}
-    </Panel>
-  );
-}
-
-function TodayLog({ today }: { today: string }) {
-  const { dict } = useI18n();
+// Il giorno toccato nel calendario: giorno di mestruazioni sì/no, flusso, sintomi.
+// I giorni futuri dicono solo che sono stime.
+function DayPanel({ day, today, isPeriod, ref }: { day: string; today: string; isPeriod: boolean; ref: React.Ref<HTMLElement> }) {
+  const { locale, dict } = useI18n();
   const t = dict.health.cycle;
-  const log = cycleDayLogs.use().find((l) => l.day === today);
+  const log = cycleDayLogs.use().find((l) => l.day === day);
+  const [y, m, d] = day.split("-").map(Number);
+  const title =
+    day === today
+      ? dict.health.food.today
+      : new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date(y, m - 1, d));
 
   return (
-    <Panel className="space-y-4">
-      <h2 className="text-headline font-semibold">{t.today.title}</h2>
-      <ChipGroup label={t.today.flow}>
-        {FLOWS.map((f) => (
-          <Chip key={f} active={log?.flow === f} onClick={() => cycleDayLogs.set((prev) => setFlow(prev, today, log?.flow === f ? undefined : f))}>
-            {t.today.flows[f]}
+    <Panel ref={ref} className="scroll-mt-6 space-y-4">
+      <h2 className="text-headline font-semibold first-letter:uppercase" aria-live="polite">
+        {title}
+      </h2>
+      {day > today ? (
+        <p className="text-subhead text-ink-2">{t.day.future}</p>
+      ) : (
+        <>
+          <Chip
+            active={isPeriod}
+            onClick={() => {
+              const next = togglePeriodDay(cyclePeriods.get(), day, today, crypto.randomUUID());
+              if (next) cyclePeriods.set(next);
+            }}
+          >
+            {t.day.periodDay}
           </Chip>
-        ))}
-      </ChipGroup>
-      <ChipGroup label={t.today.symptoms}>
-        {SYMPTOMS.map((s) => (
-          <Chip key={s} active={log?.symptoms.includes(s) ?? false} onClick={() => cycleDayLogs.set((prev) => toggleSymptom(prev, today, s))}>
-            {t.symptoms[s]}
-          </Chip>
-        ))}
-      </ChipGroup>
+          <ChipGroup label={t.today.flow}>
+            {FLOWS.map((f) => (
+              <Chip key={f} active={log?.flow === f} onClick={() => cycleDayLogs.set((prev) => setFlow(prev, day, log?.flow === f ? undefined : f))}>
+                {t.today.flows[f]}
+              </Chip>
+            ))}
+          </ChipGroup>
+          <ChipGroup label={t.today.symptoms}>
+            {SYMPTOMS.map((s) => (
+              <Chip key={s} active={log?.symptoms.includes(s) ?? false} onClick={() => cycleDayLogs.set((prev) => toggleSymptom(prev, day, s))}>
+                {t.symptoms[s]}
+              </Chip>
+            ))}
+          </ChipGroup>
+        </>
+      )}
     </Panel>
   );
 }

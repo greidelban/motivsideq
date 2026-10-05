@@ -61,6 +61,79 @@ export const it: Dictionary = {
       food: { title: "Cibo", text: "Conta calorie e proteine della giornata." },
     },
   },
+  quotes: {
+    card: {
+      eyebrow: "Frase del giorno",
+      settings: "Tono e notifiche",
+    },
+    categories: { discipline: "Disciplina", habits: "Abitudini", character: "Carattere", recovery: "Recupero" },
+    intensity: { soft: "Soft", direct: "Diretto", hard: "Duro" },
+    notification: {
+      title: "Frase del giorno",
+      sponsoredTitle: "Sponsorizzato · {brand}",
+      channel: "Frasi del giorno",
+      channelHint: "La frase del giorno, negli orari che scegli.",
+      sponsoredChannel: "Frasi sponsorizzate",
+      sponsoredChannelHint: "Al massimo una a settimana, solo se le hai attivate.",
+    },
+    sponsorCard: {
+      label: "Sponsorizzato · {brand}",
+      why: "Cosa sono le frasi sponsorizzate",
+    },
+    settings: {
+      title: "Frasi del giorno",
+      button: "Frasi del giorno",
+      summaryOff: "{intensity} · notifiche spente",
+      summaryOn: "{intensity} · {times}",
+      summaryPaused: "{intensity} · in pausa",
+      intensity: {
+        title: "Tono",
+        hint: "Stessi temi, voce diversa: disciplina, abitudini, carattere e recupero.",
+        example: "Oggi, con questo tono:",
+      },
+      notifications: {
+        title: "Notifiche",
+        enable: "Mandami la frase come notifica",
+        unavailable: "Le notifiche arrivano con l'app per iPhone e Android. Qui trovi la frase ogni giorno in Oggi. Orari e ore di silenzio puoi già sceglierli.",
+        denied: "Le notifiche di {app} sono bloccate nelle impostazioni del dispositivo. Consentile lì, poi riattivale qui.",
+        privacy: "Le programma questo dispositivo, senza server, e contengono solo la frase: mai il tuo nome o i tuoi dati.",
+        times: "Orari",
+        time: "Orario {n}",
+        add: "Aggiungi un orario",
+        remove: "Togli l'orario {n}",
+        inQuiet: "Questo orario cade nelle ore di silenzio: nessuna notifica.",
+      },
+      quiet: {
+        title: "Ore di silenzio",
+        enable: "Nessuna notifica in queste ore",
+        from: "Dalle",
+        to: "Alle",
+      },
+      pause: {
+        title: "Pausa",
+        hint: "Ferma le notifiche per un po': ripartono da sole.",
+        day: "1 giorno",
+        threeDays: "3 giorni",
+        week: "1 settimana",
+        until: "In pausa fino a {date}.",
+        resume: "Riprendi adesso",
+      },
+      sponsored: {
+        title: "Frasi sponsorizzate",
+        intro: "Facoltative e spente finché non le attivi tu. Una marca può sponsorizzare una frase: la vedi in Oggi solo per quel giorno e, se le notifiche sono attive, può arrivarti come notifica.",
+        rules: {
+          frequency: "Al massimo una notifica sponsorizzata a settimana, e una al mese dalla stessa marca.",
+          label: "Sempre indicata come “Sponsorizzato · Marca”, in un canale di notifiche separato (su Android si spegne a parte).",
+          privacy: "Nessun tracciamento: l'app scarica lo stesso file firmato per tutti e non invia nulla su di te o su cosa leggi.",
+          topics: "Le frasi sponsorizzate non parlano mai di corpo, peso, cibo o ciclo, e non compaiono mai in Ciclo, Cibo o Allenamento: solo in Oggi.",
+        },
+        consent: "Ho letto e voglio ricevere frasi sponsorizzate",
+        enable: "Attiva le frasi sponsorizzate",
+        onSince: "Attive dal {date}. Puoi spegnerle quando vuoi.",
+        disable: "Disattiva le frasi sponsorizzate",
+      },
+    },
+  },
   journal: { title: "Diario", comingSoonWhat: "Il diario" },
   health: {
     title: "Salute",
@@ -198,18 +271,58 @@ export const it: Dictionary = {
       },
       empty: {
         title: "Inizia a tracciare",
-        text: "Segna il primo giorno delle ultime mestruazioni: l'app stimerà le prossime.",
+        text: "Tocca nel calendario il primo giorno delle ultime mestruazioni: l'app stimerà le prossime.",
       },
-      actions: {
-        start: "Sono iniziate le mestruazioni",
-        end: "Sono finite le mestruazioni",
-        date: "Data",
-        save: "Salva",
-        errors: {
-          future: "La data non può essere nel futuro.",
-          duplicate: "Ci sono già mestruazioni iniziate in questo giorno.",
-          insidePeriod: "Questo giorno è dentro mestruazioni già registrate.",
-          noPeriod: "Non ci sono mestruazioni iniziate prima di questo giorno.",
+      quick: {
+        started: "Le mestruazioni sono iniziate oggi",
+        ended: "Le mestruazioni sono finite oggi",
+      },
+      calendar: {
+        title: "Calendario",
+        prev: "Mese precedente",
+        next: "Mese successivo",
+        hint: "Tocca un giorno per aprirlo qui sotto: segnalo come giorno di mestruazioni e registra flusso e sintomi.",
+        legend: {
+          period: "Mestruazioni",
+          predicted: "Previste",
+          fertile: "Finestra fertile",
+          ovulation: "Ovulazione",
+        },
+        state: {
+          period: "mestruazioni",
+          predicted: "mestruazioni previste",
+          fertile: "finestra fertile",
+          ovulation: "ovulazione stimata",
+          log: "qualcosa registrato",
+          today: "oggi",
+        },
+      },
+      day: {
+        periodDay: "Giorno di mestruazioni",
+        future: "Questo giorno non è ancora arrivato: il calendario mostra solo le stime.",
+      },
+      reminders: {
+        title: "Promemoria e privacy",
+        enable: "Avvisami prima delle mestruazioni",
+        daysBefore: "Quanto prima",
+        days: {
+          one: "{n} giorno prima",
+          other: "{n} giorni prima",
+        },
+        discreet: "Notifica discreta",
+        discreetHint: "Dice solo “Un promemoria per te”: chi è vicino al telefono non capisce di cosa si tratta.",
+        unavailable: "I promemoria arrivano con l'app per iPhone e Android. Puoi già sceglierli qui.",
+        denied: "Le notifiche di {app} sono bloccate nelle impostazioni del dispositivo.",
+        showInToday: "Mostra il ciclo in Oggi",
+        showInTodayHint: "Spegnilo se altre persone vedono il tuo schermo.",
+        notification: {
+          discreet: "Un promemoria per te.",
+          detailed: {
+            one: "Le mestruazioni potrebbero arrivare domani.",
+            other: "Le mestruazioni potrebbero arrivare tra {n} giorni.",
+          },
+          channel: "Promemoria",
+          channelHint: "I promemoria che hai attivato.",
         },
       },
       stats: {
@@ -487,7 +600,7 @@ export const it: Dictionary = {
   privacy: {
     title: "Privacy di {app}",
     updated: "Aggiornata il {date}",
-    intro: "In breve: i tuoi dati servono solo a te. Senza il cloud restano sul tuo dispositivo; con il cloud vengono cifrati sul tuo dispositivo prima di partire, così solo tu puoi leggerli, nemmeno noi. Niente pubblicità, niente analytics, niente intelligenza artificiale, nessuna vendita a terzi.",
+    intro: "In breve: i tuoi dati servono solo a te. Senza il cloud restano sul tuo dispositivo; con il cloud vengono cifrati sul tuo dispositivo prima di partire, così solo tu puoi leggerli, nemmeno noi. Niente pubblicità (a meno che tu scelga le frasi sponsorizzate), niente analytics, niente intelligenza artificiale, nessuna vendita a terzi.",
     device: {
       title: "Sul tuo dispositivo",
       p1: "Tutto ciò che inserisci (risultati degli esercizi mentali, profilo, peso, allenamenti, pasti e dati del ciclo) viene salvato nella memoria del browser di questo dispositivo. Senza il cloud non viene inviato a noi né a nessun altro.",
@@ -516,6 +629,10 @@ export const it: Dictionary = {
     rights: {
       title: "I tuoi diritti",
       body: "Puoi accedere ai tuoi dati, correggerli, esportarli e cancellarli, revocare il consenso e opporti al trattamento. Per qualsiasi richiesta scrivi a {contact}. Dato che non possiamo leggere i tuoi dati nel cloud, esportarli e correggerli si fa dall'app. Puoi anche presentare reclamo all'autorità per la protezione dei dati (in Italia, il Garante per la protezione dei dati personali).",
+    },
+    quotes: {
+      title: "Frasi del giorno e frasi sponsorizzate",
+      body: "Le frasi e le notifiche si scelgono e si programmano sul tuo dispositivo: non sappiamo quando le ricevi né cosa leggi. Le frasi sponsorizzate sono spente finché non le attivi tu: allora l'app scarica un file firmato di frasi, uguale per tutti, senza identificativi. Come per ogni download, il server che ospita il file riceve l'indirizzo di rete del dispositivo; non serve a identificarti né a contare le visualizzazioni.",
     },
     cookies: {
       title: "Cookie e memoria del browser",

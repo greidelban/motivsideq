@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { sponsorFeedOrigin } from "@/lib/quotes/sponsor-config";
 
 // Il proxy applica la Content-Security-Policy con un nonce per richiesta.
 // L'account non usa sessioni lato server: accesso e sincronizzazione avvengono
@@ -18,6 +19,7 @@ function supabaseOrigin(): string | null {
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
   const supabase = supabaseOrigin();
+  const sponsors = sponsorFeedOrigin();
   return [
     "default-src 'self'",
     // React in sviluppo usa eval per gli stack trace; in produzione no.
@@ -27,9 +29,9 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    // Supabase (account e sincronizzazione), se configurato. In sviluppo serve
-    // anche il WebSocket dell'aggiornamento a caldo di Next.
-    `connect-src 'self'${supabase ? ` ${supabase}` : ""}${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
+    // Supabase (account e sincronizzazione) e il file firmato delle frasi sponsor,
+    // se configurati. In sviluppo serve anche il WebSocket dell'aggiornamento a caldo di Next.
+    `connect-src 'self'${supabase ? ` ${supabase}` : ""}${sponsors && sponsors !== supabase ? ` ${sponsors}` : ""}${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",

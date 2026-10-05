@@ -6,12 +6,13 @@ import { getI18n } from "@/i18n/server";
 import { APP_NAME } from "@/lib/app";
 
 // Descrive cosa fa davvero l'app, con e senza cloud: va aggiornata a ogni dato
-// che il gestore può vedere (oggi: email, date dell'account, piano; il resto è cifrato).
+// che il gestore può vedere (oggi: email, date dell'account, piano; il resto è cifrato)
+// e a ogni richiesta verso l'esterno (oggi: Supabase con l'account, file sponsor col consenso).
 // TODO prima della pubblicazione: completare i dati del titolare e farla rivedere
 // da un consulente privacy (vedi DA_FARE.md).
 const CONTROLLER = "[Name / company of the data controller]";
 const CONTACT = "[privacy contact email]";
-const LAST_UPDATE = new Date(2026, 9, 4);
+const LAST_UPDATE = new Date(2026, 9, 5);
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: "Privacy" };
@@ -70,6 +71,10 @@ export default async function PrivacyPage() {
 
         <Section title={t.rights.title}>
           <p>{interpolate(t.rights.body, { contact: CONTACT })}</p>
+        </Section>
+
+        <Section title={t.quotes.title}>
+          <p>{t.quotes.body}</p>
         </Section>
 
         <Section title={t.cookies.title}>
