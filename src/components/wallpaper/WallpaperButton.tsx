@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/client";
+import { usePrefersReducedMotion } from "@/components/light/MotionSync";
 import { appearance, paletteFor } from "@/lib/light/appearance";
+import { motionLabel } from "@/lib/light/motion";
 import { paletteHex } from "@/lib/light/palettes";
 import { useHydrated } from "@/lib/storage/local-store";
 import { paletteSwatch } from "./WallpaperPicker";
@@ -16,6 +18,9 @@ export function WallpaperButton() {
   const hydrated = useHydrated();
   const { background } = settings;
   const palette = paletteFor(settings, background);
+  const reduced = usePrefersReducedMotion();
+  // Si vede anche la velocità: il cursore delle animazioni sta nella pagina Sfondo.
+  const motion = dict.settings.motion.levels[motionLabel(reduced ? 0 : settings.motion)];
 
   return (
     <Link
@@ -35,7 +40,7 @@ export function WallpaperButton() {
       <span className="min-w-0 flex-1">
         <span className="block text-headline font-semibold">{t.button}</span>
         <span className="block truncate text-footnote text-muted">
-          {hydrated ? `${dict.settings.background.options[background].name} · ${t.palettes[palette]}` : t.open}
+          {hydrated ? `${dict.settings.background.options[background].name} · ${t.palettes[palette]} · ${motion}` : t.open}
         </span>
       </span>
       <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted" aria-hidden="true">

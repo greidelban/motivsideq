@@ -25,10 +25,10 @@ Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4, zod, Vitest, Supabase 
   - **Scintille:** grappoli di luci sfocate (bokeh) e polvere che brilla, con un bagliore lento ogni tanto;
   - **Prisma:** piani di luce dai bordi netti, con frange colorate, che ruotano attorno a un vertice;
   - **Classico:** lo sfondo fermo in CSS.
-  - Respira da solo e gira attorno al dito con un tocco sullo sfondo libero (i tocchi su pulsanti, menu e pannelli non lo muovono). Scorrere e trascinare non lo deformano, e la barra del browser che compare e sparisce non lo stira (canvas alto `100lvh`).
+  - Respira da solo e non risponde a tocchi, trascinamenti o scroll: si sceglie solo il colore e la velocità dell'animazione. La barra del browser che compare e sparisce non lo stira (canvas alto `100lvh`).
   - Ogni schermata ne regola l'intensità, i giochi mandano impulsi di luce, e durante il Risveglio cresce come un'alba.
   - Con "riduci movimento" diventa un'immagine ferma; senza WebGL resta lo sfondo CSS.
-- **Animazioni** (cursore in Impostazioni, da "Ferme" a "Massime"): regola velocità e ampiezza degli sfondi e delle animazioni dell'interfaccia. "Riduci movimento" del sistema vince sempre.
+- **Animazioni** (cursore nella pagina Sfondo, da "Ferme" a "Massime"): regola velocità e ampiezza degli sfondi e delle animazioni dell'interfaccia. "Riduci movimento" del sistema vince sempre.
 - **Cambio scheda immediato:** le pagine del menu vengono precaricate e restano in cache per 5 minuti (`experimental.staleTimes`); la lente del menu si sposta subito al tocco; nessuna animazione di comparsa a ogni cambio pagina.
 - **Accendi** (`/mind/light`, primo passo del Risveglio): 30 secondi in cui fissi il centro e respiri con la luce (4 s dentro, 6 fuori).
   - La luce si accende quando inspiri e si abbassa quando espiri, e intanto cresce come un'alba fino al bagliore finale.

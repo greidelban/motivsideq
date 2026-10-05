@@ -186,6 +186,7 @@ body::before {
 /* Luce viva (src/components/light/LivingLight.tsx): appare in dissolvenza
    appena il primo frame è pronto, così non c'è mai un lampo nero. */
 .living-light {
+  pointer-events: none;
   position: fixed;
   top: 0;
   left: 0;

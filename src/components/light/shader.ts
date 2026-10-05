@@ -25,7 +25,6 @@ uniform float uTime;
 uniform float uEnergy;
 uniform float uPulse;
 uniform float uBreath;
-uniform vec3 uPointer; // xy posizione, z quantità
 uniform float uMotion;  // livello di animazione scelto dall'utente, 0..1 (la velocità è già nel tempo)
 // Colori scelti dall'utente (src/lib/light/palettes.ts): 4 ruoli fissi.
 uniform vec3 uPal[4];
@@ -67,12 +66,6 @@ mat2 rot(float a) {
   return mat2(c, -s, s, c);
 }
 
-// Coordinate centrate (altezza = 1), già deformate dal vortice del tocco.
-vec2 touchedUv(vec2 uv) {
-  vec2 d = uv - uPointer.xy;
-  float swirl = exp(-dot(d, d) * 7.0) * uPointer.z * (0.8 + 1.6 * uMotion);
-  return uPointer.xy + rot(swirl) * d;
-}
 
 // Vignettatura, fondo, compressione dei toni, dithering anti-bande.
 vec4 finish(vec3 col, vec3 base, float rad) {
@@ -91,7 +84,7 @@ void main() {
   float t = uTime;
   float e = clamp(uEnergy, 0.0, 1.0);
   float lit = clamp(uEnergy + uPulse * 0.5, 0.0, 1.6);
-  vec2 w = touchedUv(uv);
+  vec2 w = uv;
 
   // Fumo: rumore frattale deformato da sé stesso, lento e organico.
   vec2 p = w * 2.4;
@@ -207,7 +200,7 @@ void main() {
   float e = clamp(uEnergy, 0.0, 1.0);
   float lit = clamp(uEnergy + uPulse * 0.5, 0.0, 1.6);
   float b = uBreath;
-  vec2 w = touchedUv(uv);
+  vec2 w = uv;
 
   // Respira: si allarga inspirando e si raccoglie espirando.
   vec2 g = w * (1.0 - (0.03 + 0.04 * uMotion) * (b - 0.5));
@@ -270,7 +263,7 @@ void main() {
   float e = clamp(uEnergy, 0.0, 1.0);
   float lit = clamp(uEnergy + uPulse * 0.5, 0.0, 1.6);
   float b = uBreath;
-  vec2 w = touchedUv(uv) * (1.0 - 0.04 * (b - 0.5));
+  vec2 w = uv * (1.0 - 0.04 * (b - 0.5));
   float rad = length(w);
   vec2 dir = w / max(rad, 0.001);
   float s = t * 0.045;
@@ -349,7 +342,7 @@ void main() {
   float t = uTime;
   float lit = clamp(uEnergy + uPulse * 0.5, 0.0, 1.6);
   float b = uBreath;
-  vec2 w = touchedUv(uv);
+  vec2 w = uv;
 
   // Grappoli: zone dove il pulviscolo è più fitto, che si spostano.
   float cl = fbm(w * 1.8 + vec2(t * 0.03, -t * 0.05));
@@ -422,7 +415,7 @@ void main() {
   float t = uTime;
   float lit = clamp(uEnergy + uPulse * 0.5, 0.0, 1.6);
   float b = uBreath;
-  vec2 w = touchedUv(uv);
+  vec2 w = uv;
 
   // Il vertice vaga piano attorno al centro; i raggi spazzano lo schermo.
   vec2 vertex = vec2(0.09 * sin(t * 0.13), 0.12 * sin(t * 0.09 + 1.0));

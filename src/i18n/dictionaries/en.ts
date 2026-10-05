@@ -450,7 +450,6 @@ export const en = {
       open: "Background and colors",
       backgrounds: "Background",
       colors: "Colors",
-      tapHint: "Tap the background to stir it",
       palettes: {
         original: "Original",
         ember: "Ember",
@@ -547,7 +546,7 @@ export const en = {
     light: {
       title: "Light up",
       tagline: "30 seconds of breath and light",
-      howTo: "Keep your eyes on the cross of light in the center and breathe with it: in while it grows, out while it fades. Touch the screen to stir the smoke.",
+      howTo: "Keep your eyes on the cross of light in the center and breathe with it: in while it grows, out while it fades.",
       duration: "30 s",
       calmNote: "The light changes slowly, with no flashing. If moving images bother you, skip this step.",
       inhale: "Breathe in",

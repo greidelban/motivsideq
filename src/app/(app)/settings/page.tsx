@@ -5,7 +5,6 @@ import { BackupPanel } from "@/components/BackupPanel";
 import { Disclaimer } from "@/components/Disclaimer";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocalDataPanel } from "@/components/LocalDataPanel";
-import { MotionPicker } from "@/components/MotionPicker";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import { PageHeader, Panel } from "@/components/ui";
 import { WallpaperButton } from "@/components/wallpaper/WallpaperButton";
@@ -26,7 +25,6 @@ export default async function SettingsPage() {
         <AccountPanel />
         <ProfilePanel />
         <WallpaperButton />
-        <MotionPicker />
         <LanguagePicker />
         <LocalDataPanel />
         <BackupPanel />

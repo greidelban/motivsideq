@@ -448,7 +448,6 @@ export const it: Dictionary = {
       open: "Sfondo e colori",
       backgrounds: "Sfondo",
       colors: "Colori",
-      tapHint: "Tocca lo sfondo per farlo muovere",
       palettes: {
         original: "Originale",
         ember: "Brace",
@@ -545,7 +544,7 @@ export const it: Dictionary = {
     light: {
       title: "Accendi",
       tagline: "30 secondi di respiro e luce",
-      howTo: "Tieni lo sguardo sulla croce di luce al centro e respira con lei: inspira mentre cresce, espira mentre cala. Tocca lo schermo per muovere il fumo.",
+      howTo: "Tieni lo sguardo sulla croce di luce al centro e respira con lei: inspira mentre cresce, espira mentre cala.",
       duration: "30 s",
       calmNote: "La luce cambia lentamente, senza lampeggi. Se le immagini in movimento ti danno fastidio, salta questo passo.",
       inhale: "Inspira",

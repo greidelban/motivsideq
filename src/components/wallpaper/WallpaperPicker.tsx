@@ -89,9 +89,9 @@ export function WallpaperPicker() {
         })}
       </div>
 
-      {/* Quanto si muove lo sfondo (lo stesso livello di Impostazioni → Animazioni). */}
+      {/* Quanto si muove lo sfondo (e l'interfaccia): l'unico posto dove si sceglie. */}
       <div className="mt-4 border-t border-hairline pt-3">
-        <MotionSlider id="wp-motion" compact />
+        <MotionSlider id="wp-motion" />
       </div>
     </section>
   );

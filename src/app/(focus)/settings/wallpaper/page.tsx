@@ -17,9 +17,8 @@ export default async function WallpaperPage() {
     <>
       <LightLevel energy={0.45} />
       <GameHeader title={t.title} closeHref="/settings" closeLabel={dict.common.back} />
-      <p className="on-backdrop flex flex-1 items-end justify-center pb-4 text-footnote text-ink-2">
-        {t.tapHint}
-      </p>
+      {/* Spazio libero: lo sfondo vero si vede qui sopra le scelte. */}
+      <div className="flex-1" />
       <WallpaperPicker />
     </>
   );

@@ -12,16 +12,9 @@ import { VERTEX_SHADER, fragmentShaderFor } from "./shader";
 // Si disegna a risoluzione ridotta (RENDER_SCALE, per sfondo) e il browser
 // ingrandisce: meno pixel = meno batteria.
 const MAX_PIXELS = 360_000;
-// Un "tocco" che fa girare la luce: dito giù e su, senza spostarsi.
-// Trascinare o scorrere la pagina non deve deformare lo sfondo.
-const TAP_MAX_MOVE_PX = 10;
-const TAP_MAX_MS = 450;
-// Toccare un controllo o un pannello non deve far girare lo sfondo: il vortice
-// risponde solo ai tocchi sullo sfondo libero.
-const UI_SELECTOR =
-  "a, button, input, select, textarea, label, [role=button], [role=radio], [role=slider], nav, header, .glass, .glass-elevated, .glass-clear, .card";
+// Lo sfondo non risponde a tocchi, trascinamenti o scroll: si sceglie solo il
+// colore e la velocità dell'animazione (pagina Sfondo).
 const FRAME_MS = 1000 / 40;
-const POINTER_DECAY = 1.4;
 
 function compile(gl: WebGLRenderingContext, type: number, source: string) {
   const shader = gl.createShader(type);
@@ -100,12 +93,10 @@ export function LivingLight() {
       energy: gl.getUniformLocation(program, "uEnergy"),
       pulse: gl.getUniformLocation(program, "uPulse"),
       breath: gl.getUniformLocation(program, "uBreath"),
-      pointer: gl.getUniformLocation(program, "uPointer"),
       motion: gl.getUniformLocation(program, "uMotion"),
       palette: gl.getUniformLocation(program, "uPal"),
     };
 
-    const pointer = { x: 0, y: 0, tx: 0, ty: 0, amount: 0 };
     // Ogni sessione parte da un punto diverso. Il tempo dello sfondo avanza alla
     // velocità scelta dall'utente (motion.ts): cambiarla non provoca salti.
     let simTime = Math.random() * 1000;
@@ -155,7 +146,6 @@ export function LivingLight() {
       gl.uniform1f(u.energy, energy);
       gl.uniform1f(u.pulse, still ? 0 : light.pulse);
       gl.uniform1f(u.breath, still ? 0.5 : (guided ?? idleBreath(now)));
-      gl.uniform3f(u.pointer, pointer.x, pointer.y, still ? 0 : pointer.amount);
       gl.uniform3fv(u.palette, paletteRef.current.value);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
@@ -169,11 +159,6 @@ export function LivingLight() {
       if (light.motion === 0) return start();
       simTime += Math.min(dt, 0.1) * timeScale(light.motion);
       writeLight(stepLight(light, dt));
-      // Il dito "trascina" il vortice con un po' di ritardo, come in un fluido.
-      const k = 1 - Math.exp(-8 * Math.min(dt, 0.1));
-      pointer.x += (pointer.tx - pointer.x) * k;
-      pointer.y += (pointer.ty - pointer.y) * k;
-      pointer.amount *= Math.exp(-POINTER_DECAY * Math.min(dt, 0.25));
       const visible = shouldShow();
       setVisible(visible);
       if (!visible || now - lastDraw < FRAME_MS) return;
@@ -208,29 +193,6 @@ export function LivingLight() {
       raf = requestAnimationFrame(frame);
     }
 
-    // Il vortice parte solo con un tocco vero: se il dito si sposta (scroll,
-    // trascinamento) o resta giù a lungo, non succede nulla.
-    let tapStart: { x: number; y: number; at: number } | null = null;
-    function onPointerDown(e: PointerEvent) {
-      const onUi = e.target instanceof Element && e.target.closest(UI_SELECTOR);
-      tapStart = onUi || e.button !== 0 ? null : { x: e.clientX, y: e.clientY, at: performance.now() };
-    }
-    function onPointerUp(e: PointerEvent) {
-      const start = tapStart;
-      tapStart = null;
-      if (!start || !canvas) return;
-      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-      if (moved > TAP_MAX_MOVE_PX || performance.now() - start.at > TAP_MAX_MS) return;
-      // Stesse coordinate dello shader: centro = 0, altezza = 1, y verso l'alto.
-      const rect = canvas.getBoundingClientRect();
-      pointer.x = pointer.tx = (e.clientX - rect.left - rect.width / 2) / rect.height;
-      pointer.y = pointer.ty = (rect.top + rect.height / 2 - e.clientY) / rect.height;
-      pointer.amount = Math.min(1, pointer.amount + 0.7);
-    }
-    const cancelTap = () => {
-      tapStart = null;
-    };
-
     const onVisibility = () => {
       if (!document.hidden) return start();
       cancelAnimationFrame(raf);
@@ -245,7 +207,7 @@ export function LivingLight() {
     // Solo in sviluppo: comandi da console per provare la luce (window.__light).
     if (process.env.NODE_ENV === "development") {
       Object.assign(window, {
-        __light: { setLightEnergy, pulseLight, setGuidedBreath, readLight, swirl: () => pointer.amount },
+        __light: { setLightEnergy, pulseLight, setGuidedBreath, readLight },
       });
     }
 
@@ -253,10 +215,6 @@ export function LivingLight() {
     start();
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(canvas);
-    window.addEventListener("pointerdown", onPointerDown, { passive: true });
-    window.addEventListener("pointerup", onPointerUp, { passive: true });
-    window.addEventListener("pointercancel", cancelTap, { passive: true });
-    window.addEventListener("scroll", cancelTap, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
     canvas.addEventListener("webglcontextlost", onContextLost);
 
@@ -264,10 +222,6 @@ export function LivingLight() {
       cancelAnimationFrame(raf);
       clearInterval(stillTimer);
       resizeObserver.disconnect();
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", cancelTap);
-      window.removeEventListener("scroll", cancelTap);
       document.removeEventListener("visibilitychange", onVisibility);
       canvas.removeEventListener("webglcontextlost", onContextLost);
       gl.deleteBuffer(buffer);
