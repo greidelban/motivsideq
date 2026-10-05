@@ -23,9 +23,7 @@ Progetto Supabase `idghdzlznxhqlpaqdmfy` (Central EU, Frankfurt). Chiavi in `.en
 Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client.ts`, pagine `/account` e `/auth/confirm`).
 - [x] Progetto Supabase gratuito creato (regione **Central EU (Frankfurt)**).
 - [x] URL e chiavi in `.env.local` (modello: `.env.example`).
-- [ ] **Sicurezza: la chiave `service_role` è stata incollata in chat il 4/10/2026.** L'utente ha scelto di tenerla per ora e cambiarla più avanti (al più tardi prima del lancio). Sostituirla:
-  - *Project Settings → API Keys*: creare una chiave **secret** (`sb_secret_…`) e metterla in `.env.local` al posto di `SUPABASE_SERVICE_ROLE_KEY`;
-  - poi *Legacy API keys → Disable* (disattiva le vecchie anon e service_role). L'app non ne risente: usa la publishable.
+- [x] **Sicurezza:** la chiave `service_role` incollata in chat il 4/10/2026 è stata resa inutilizzabile il 5/10/2026 (*Legacy API keys → Disable*, da non riattivare) e tolta da `.env.local`. L'app usa la chiave publishable. Quando servirà una chiave segreta (es. cancellazione account) si crea una *secret key* nuova (`sb_secret_…`), mai in chat né su git.
 - [x] Schema v2 trasformato in migrazioni (`supabase/migrations/`, 5 file).
 - [x] Migrazioni eseguite nello SQL Editor il 4/10/2026 con `supabase/setup-completo.sql` (`npm run db:bundle`). Verificato dall'esterno: 10 tabelle, accesso negato agli anonimi, funzioni del ciclo protette.
 - [ ] *Authentication → URL Configuration*: Site URL `http://localhost:3000` e Redirect URL `http://localhost:3000/auth/confirm`.
