@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DevPersonas } from "@/components/DevPersonas";
 import { TabBar } from "@/components/TabBar";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -14,6 +15,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <TabBar />
+      {/* Profili di prova (Giorgio, Marta): solo in sviluppo, mai nella versione pubblicata. */}
+      {process.env.NODE_ENV === "development" && <DevPersonas />}
     </>
   );
 }

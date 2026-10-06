@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
-import { interpolate, plural } from "@/i18n/format";
+import { formatHours, interpolate, plural } from "@/i18n/format";
 import { daysBetween, localDateKey } from "@/lib/dates";
 import {
   type CycleStatus,
@@ -22,6 +22,8 @@ import {
 import { cycleCalendar } from "@/lib/health/cycle-calendar";
 import { cycleConsent, cycleDayLogs, cyclePeriods, deleteCycleData } from "@/lib/health/store";
 import { canUseCycle } from "@/lib/health/cycle-access";
+import { type Level, SCALES } from "@/lib/journal/journal";
+import { checkIns } from "@/lib/journal/store";
 import { CYCLE_POLICY_VERSION } from "@/lib/legal";
 import { profile } from "@/lib/profile/store";
 import { useLocalData } from "@/lib/storage/db";
@@ -339,9 +341,29 @@ function DayPanel({ day, today, isPeriod, ref }: { day: string; today: string; i
               </Chip>
             ))}
           </ChipGroup>
+          <DayCheckIn day={day} />
         </>
       )}
     </Panel>
+  );
+}
+
+// Umore, energia, fame e sonno hanno una sola fonte, il check-in del Diario:
+// qui si leggono soltanto (si cambiano nel Diario).
+function DayCheckIn({ day }: { day: string }) {
+  const { locale, dict } = useI18n();
+  const t = dict.journal.checkIn;
+  const entry = checkIns.use().find((c) => c.day === day);
+  if (!entry) return null;
+  const parts = [
+    ...SCALES.filter((s) => entry[s] !== undefined).map((s) => `${t.scales[s]}: ${t.levels[s][entry[s] as Level]}`),
+    ...(entry.sleepHours !== undefined ? [`${t.sleep}: ${formatHours(locale, entry.sleepHours)}`] : []),
+  ];
+  return (
+    <Link href="/journal" className="card block px-4 py-3">
+      <span className="eyebrow mb-1 block">{dict.journal.fromCheckIn}</span>
+      <span className="block text-subhead text-ink-2">{parts.join(" · ")}</span>
+    </Link>
   );
 }
 

@@ -1,5 +1,6 @@
 import * as z from "zod/mini";
 import { addDays, localDateKey } from "@/lib/dates";
+import { MAX_EXERCISES, exerciseLogSchema } from "./exercises";
 
 // Tipi di allenamento con i MET (Compendium of Physical Activities, valori
 // arrotondati) per intensità leggera / media / intensa.
@@ -34,6 +35,22 @@ const WORKOUT_TYPE_IDS = Object.keys(WORKOUT_TYPES) as [WorkoutType, ...WorkoutT
 
 export type Intensity = 1 | 2 | 3;
 
+/** Tipi con esercizi, serie e pesi. */
+const STRENGTH_TYPES: readonly WorkoutType[] = ["gym", "calisthenics", "crossfit"];
+/** Tipi con la distanza: "pace" = minuti al km (corsa, camminata), "speed" = km/h. */
+const DISTANCE_TYPES: Partial<Record<WorkoutType, "pace" | "speed">> = {
+  running: "pace",
+  walking: "pace",
+  hiking: "pace",
+  cycling: "speed",
+  swimming: "pace",
+  rowing: "pace",
+};
+export const MAX_KM = 1000;
+
+export const hasExercises = (type: WorkoutType) => STRENGTH_TYPES.includes(type);
+export const distanceMode = (type: WorkoutType) => DISTANCE_TYPES[type] ?? null;
+
 export const MAX_MINUTES = 600;
 
 export const workoutSchema = z.object({
@@ -45,6 +62,10 @@ export const workoutSchema = z.object({
   minutes: z.int().check(z.gte(1), z.lte(MAX_MINUTES)),
   intensity: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   note: z.optional(z.string().check(z.maxLength(200))),
+  /** Esercizi con le serie (palestra, corpo libero, funzionale). */
+  exercises: z.optional(z.array(exerciseLogSchema).check(z.maxLength(MAX_EXERCISES))),
+  /** Distanza in km (corsa, bici, nuoto...). */
+  distanceKm: z.optional(z.number().check(z.gt(0), z.lte(MAX_KM))),
 });
 export type Workout = z.infer<typeof workoutSchema>;
 
@@ -86,4 +107,11 @@ export function weekSummary(workouts: readonly Workout[], weightKg: number | nul
 /** Più recenti per primi. */
 export function sortRecent<T extends { at: string }>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Secondi al km (per il passo) oppure km/h, secondo il tipo. null se mancano i dati. */
+export function paceOrSpeed(type: WorkoutType, minutes: number, km: number | undefined): { kind: "pace"; secondsPerKm: number } | { kind: "speed"; kmh: number } | null {
+  const mode = distanceMode(type);
+  if (!mode || !km || km <= 0 || minutes <= 0) return null;
+  return mode === "pace" ? { kind: "pace", secondsPerKm: Math.round((minutes * 60) / km) } : { kind: "speed", kmh: Math.round((km / (minutes / 60)) * 10) / 10 };
 }

@@ -11,7 +11,7 @@
 //    lingua; i file delle versioni vecchie si tolgono.
 // Mai in cache: altri siti (Supabase), richieste non GET, indirizzi con parametri.
 
-const VERSION = "v5";
+const VERSION = "v6";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const SIGNATURE = "/__sw-signature";
@@ -27,6 +27,7 @@ const ROUTES = [
   "/mind/math",
   "/mind/schulte",
   "/journal",
+  "/insights",
   "/health/training",
   "/health/food",
   "/health/cycle",

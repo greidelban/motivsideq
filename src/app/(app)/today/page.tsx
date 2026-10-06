@@ -3,6 +3,7 @@ import Link from "next/link";
 import { WakeUpCard } from "@/components/brain/WakeUpCard";
 import { CycleTodayCard } from "@/components/health/CycleTodayCard";
 import { IconChevronRight } from "@/components/icons";
+import { JournalTodayCard } from "@/components/journal/JournalTodayCard";
 import { QuoteCard } from "@/components/quotes/QuoteCard";
 import { SponsorCard } from "@/components/quotes/SponsorCard";
 import { TodayHeader } from "@/components/TodayHeader";
@@ -15,9 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const SECTIONS = [
-  { href: "/journal", key: "journal" },
   { href: "/health/training", key: "training" },
   { href: "/health/food", key: "food" },
+  { href: "/insights", key: "insights" },
 ] as const;
 
 export default async function TodayPage() {
@@ -28,6 +29,7 @@ export default async function TodayPage() {
       <div className="space-y-3">
         <QuoteCard />
         <WakeUpCard hideWhenDone />
+        <JournalTodayCard />
         <CycleTodayCard />
         {SECTIONS.map(({ href, key }) => (
           <Link key={href} href={href} className="block">

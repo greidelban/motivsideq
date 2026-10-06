@@ -26,6 +26,11 @@ export function formatDuration(locale: Locale, ms: number): string {
   return `${formatNumber(locale, ms / 1000, 1)} s`;
 }
 
+/** Ore con al massimo un decimale: "7.5 hr", "7,5 h", "7,5 Std." secondo la lingua. */
+export function formatHours(locale: Locale, hours: number): string {
+  return hours.toLocaleString(locale, { style: "unit", unit: "hour", unitDisplay: "short", maximumFractionDigits: 1 });
+}
+
 export function formatPercent(locale: Locale, fraction: number): string {
   return Math.abs(fraction).toLocaleString(locale, { style: "percent", maximumFractionDigits: 0 });
 }

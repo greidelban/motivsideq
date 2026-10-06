@@ -8,6 +8,8 @@ import { dayLogSchema, periodSchema } from "@/lib/health/cycle";
 import { foodEntrySchema } from "@/lib/health/food";
 import { cycleConsent, cycleDayLogs, cyclePeriods, foodEntries, workouts } from "@/lib/health/store";
 import { workoutSchema } from "@/lib/health/workouts";
+import { checkInSchema, journalPageSchema } from "@/lib/journal/journal";
+import { checkIns, journalPages } from "@/lib/journal/store";
 import { appearance } from "@/lib/light/appearance";
 import { bodyWeightSchema } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
@@ -37,6 +39,8 @@ const STORES: Included[] = [
   doc(cycleConsent),
   list(cyclePeriods, periodSchema, (p) => p.id),
   list(cycleDayLogs, dayLogSchema, (l) => l.day),
+  list(checkIns, checkInSchema, (c) => c.day),
+  list(journalPages, journalPageSchema, (p) => p.day),
   doc(appearance),
   doc(brainSettings),
 ];

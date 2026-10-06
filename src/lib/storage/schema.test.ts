@@ -19,6 +19,9 @@ const PUBLIC_COLUMNS: Record<string, string[]> = {
   vault_usage: ["user_id", "bytes"],
   write_counters: ["user_id", "table_name", "day", "count"],
   row_totals: ["user_id", "table_name", "count"],
+  // Correzioni degli alimenti: dati condivisi, non personali (nessun id dell'account, solo un'impronta).
+  food_secret: ["id", "secret"],
+  food_corrections: ["food_id", "voter", "kcal", "protein", "carbs", "fat", "updated_on"],
 };
 
 const KEY_A = "a".repeat(32);
@@ -31,7 +34,7 @@ it("le migrazioni rispettano tutte le regole dello schema", { timeout: 60_000 },
   await db.exec(`
     create role anon; create role authenticated;
     create schema auth;
-    create table auth.users (id uuid primary key);
+    create table auth.users (id uuid primary key, email_confirmed_at timestamptz);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     grant usage on schema public, auth to authenticated, anon;
     grant execute on function auth.uid() to authenticated, anon;
@@ -192,6 +195,37 @@ it("le migrazioni rispettano tutte le regole dello schema", { timeout: 60_000 },
   check("dopo il reset la chiave vecchia non scrive", (await fails(A, push(rid(1)))) !== null);
   r = await as(B, `select count(*)::int as n from vault_records`);
   check("il reset di A non tocca B", r.rows[0].n > 0);
+
+  // Correzioni degli alimenti: solo email verificate, un voto a persona, fuori solo la mediana.
+  const fix = (food: string, kcal: number, p: number, c: number, f: number) => `select submit_food_correction('${food}', ${kcal}, ${p}, ${c}, ${f})`;
+  const unverified = await fails(A, fix("pasta-dry", 371, 13, 75, 1.5));
+  check("correzione: serve l'email verificata", unverified?.includes("email verificata") === true, unverified ?? "");
+  check("correzione: gli anonimi non possono", (await fails("", fix("pasta-dry", 371, 13, 75, 1.5))) !== null);
+  const voters = Array.from({ length: 5 }, (_, i) => `4444444${i}-4444-4444-4444-444444444444`);
+  await admin(`insert into auth.users values ${voters.map((v) => `('${v}', now())`).join(", ")}`);
+  await admin(`update auth.users set email_confirmed_at = now() where id = '${A}'`);
+  check("correzione incoerente rifiutata", (await fails(A, fix("pasta-dry", 900, 1, 1, 1))) !== null);
+  check("id dell'alimento non valido rifiutato", (await fails(A, fix("Pasta; drop", 371, 13, 75, 1.5))) !== null);
+  await as(A, fix("pasta-dry", 360, 12, 74, 1.4));
+  await as(A, fix("pasta-dry", 371, 13, 75, 1.5)); // ci ripensa: vale l'ultima
+  r = await admin(`select voter from food_corrections`);
+  check("un voto per persona", r.rows.length === 1);
+  check("nessun id dell'account salvato", !r.rows[0].voter.includes(A.replaceAll("-", "")) && r.rows[0].voter !== A);
+  check("le singole correzioni non si leggono", (await fails(A, `select * from food_corrections`)) !== null);
+  check("la chiave delle impronte non si legge", (await fails(A, `select * from food_secret`)) !== null);
+  for (const [i, v] of voters.slice(0, 3).entries()) await as(v, fix("pasta-dry", 350 + i, 12, 74, 1));
+  r = await as(A, `select * from food_consensus()`);
+  check("sotto i 5 voti niente valori della comunità", r.rows.length === 0);
+  await as(voters[3], fix("pasta-dry", 800, 12, 74, 1).replace("800", "330"));
+  // Un valore assurdo ma coerente (tutto grasso) non sposta la mediana.
+  await as(voters[4], fix("pasta-dry", 880, 0, 0, 98));
+  r = await as(A, `select * from food_consensus()`);
+  // Voti: A 371, poi 350, 351, 352, 330, 880 → mediana 351,5.
+  check("mediana dei voti", r.rows.length === 1 && r.rows[0].votes === 6 && Number(r.rows[0].kcal) === 351.5 && Number(r.rows[0].fat) === 1, JSON.stringify(r.rows[0]));
+  r = await as(A, `select withdraw_food_corrections('pasta-dry') as n`);
+  check("ritiro della propria correzione", r.rows[0].n === 1);
+  r = await as(A, `select * from food_consensus()`);
+  check("dopo il ritiro il voto non conta più", r.rows[0]?.votes === 5 && Number(r.rows[0].kcal) === 351, JSON.stringify(r.rows[0]));
 
   await db.close();
 });

@@ -8,7 +8,8 @@ describe("caveau cifrato", () => {
     const content = { c: "body-weights", k: "2026-10-04", v: { day: "2026-10-04", kg: 70 }, ca: "2026-10-04T08:00:00.000Z" };
     const payload = await cipher.seal(id, content);
     expect(payload.startsWith("v1.")).toBe(true);
-    expect(payload).not.toMatch(/body|weights|2026|kg/);
+    // Solo parole di almeno 4 lettere: due lettere ("kg") compaiono per caso nel base64 circa una volta su 20.
+    expect(payload).not.toMatch(/body|weights|2026/);
     expect(await cipher.open(id, payload)).toEqual(content);
   });
 

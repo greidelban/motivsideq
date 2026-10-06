@@ -1,6 +1,7 @@
 import * as z from "zod/mini";
 
-// Conta-calorie a inserimento manuale: niente database di alimenti esterni.
+// Conta-calorie: alimenti dalla tabella inclusa nell'app (catalog/) o inseriti a
+// mano. Nessun database di alimenti esterno.
 
 export const MEALS = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type Meal = (typeof MEALS)[number];
@@ -19,6 +20,10 @@ export const foodEntrySchema = z.object({
   protein: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
   carbs: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
   fat: z.optional(z.number().check(z.gte(0), z.lte(MAX_MACRO_G))),
+  /** Alimento della tabella (catalog/foods.ts), se scelto da lì: serve a mostrarne il nome nella lingua dell'app. */
+  foodId: z.optional(z.string().check(z.maxLength(64))),
+  /** Quantità in g (o ml) usata per calcolare i valori. */
+  amount: z.optional(z.number().check(z.gt(0), z.lte(5000))),
 });
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 

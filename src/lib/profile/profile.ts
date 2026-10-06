@@ -1,6 +1,6 @@
 import * as z from "zod/mini";
 import { type AgeGroup, MIN_AGE, ageFromBirth, ageGroup } from "@/lib/age";
-import { WEIGHT_UNITS } from "@/lib/units";
+import { HEIGHT_UNITS, WEIGHT_UNITS } from "@/lib/units";
 
 // Dati del profilo usati da Allenamento e Alimentazione (e dal Ciclo per l'età).
 // Stessi vincoli della tabella public.profiles: quando arriverà Supabase si copiano così.
@@ -30,6 +30,8 @@ export const profileSchema = z.object({
   goal: z.optional(z.enum(GOALS)),
   /** Solo per l'interfaccia: il peso si salva sempre in kg. */
   weightUnit: z.optional(z.enum(WEIGHT_UNITS)),
+  /** Solo per l'interfaccia: l'altezza si salva sempre in cm. */
+  heightUnit: z.optional(z.enum(HEIGHT_UNITS)),
 });
 export type Profile = z.infer<typeof profileSchema>;
 

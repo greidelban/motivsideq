@@ -30,7 +30,7 @@ import {
 } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
 import { useLocalData } from "@/lib/storage/db";
-import { WEIGHT_UNITS, type WeightUnit, fromKg, toKg } from "@/lib/units";
+import { HEIGHT_UNITS, type HeightUnit, WEIGHT_UNITS, type WeightUnit, cmToFeetInches, feetInchesToCm, fromKg, toKg } from "@/lib/units";
 
 const OLDEST = 100;
 /** Attesa dopo l'ultima modifica prima di salvare (mentre si scrive non si salva a ogni tasto). */
@@ -70,6 +70,10 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
   const [month, setMonth] = useState(initial.birthMonth?.toString() ?? "");
   const [year, setYear] = useState(initial.birthYear?.toString() ?? "");
   const [height, setHeight] = useState(initial.heightCm?.toString() ?? "");
+  const [heightUnit, setHeightUnit] = useState<HeightUnit>(initial.heightUnit ?? "cm");
+  const initialFtIn = initial.heightCm === undefined ? null : cmToFeetInches(initial.heightCm);
+  const [feet, setFeet] = useState(initialFtIn ? String(initialFtIn.feet) : "");
+  const [inches, setInches] = useState(initialFtIn ? String(initialFtIn.inches) : "");
   const [unit, setUnit] = useState<WeightUnit>(initial.weightUnit ?? "kg");
   const [weight, setWeight] = useState(initialWeight === null ? "" : showWeight(initialWeight, initial.weightUnit ?? "kg"));
   const [activity, setActivity] = useState<ActivityLevel | "">(initial.activityLevel ?? "");
@@ -88,9 +92,18 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
   const draft: Profile = { sex, birthYear: birthOk ? birthYear : undefined, birthMonth: birthOk ? birthMonth : undefined };
   const minor = birthOk && profileAgeGroup(draft, now) !== "adult" && birthComplete;
 
-  const heightValue = parseDecimal(height);
+  // Altezza in cm, oppure in piedi e pollici (si salva sempre in cm).
+  const heightEmpty = heightUnit === "cm" ? height.trim() === "" : feet.trim() === "" && inches.trim() === "";
+  const ftValue = parseDecimal(feet);
+  const inValue = inches.trim() === "" ? 0 : parseDecimal(inches);
+  const heightValue =
+    heightUnit === "cm"
+      ? parseDecimal(height)
+      : Number.isInteger(ftValue) && inValue >= 0 && inValue < 12
+        ? feetInchesToCm(ftValue, inValue)
+        : NaN;
   const weightValue = parseDecimal(weight);
-  const heightOk = height.trim() === "" || (heightValue >= HEIGHT_RANGE.min && heightValue <= HEIGHT_RANGE.max);
+  const heightOk = heightEmpty || (heightValue >= HEIGHT_RANGE.min && heightValue <= HEIGHT_RANGE.max);
   const weightKg = Number.isFinite(weightValue) ? toKg(weightValue, unit) : NaN;
   const weightOk = weight.trim() === "" || (weightKg >= WEIGHT_RANGE.min && weightKg <= WEIGHT_RANGE.max);
 
@@ -108,7 +121,8 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
       sex,
       birthYear: birthEmpty ? undefined : birthValid ? birthYear : saved.birthYear,
       birthMonth: birthEmpty ? undefined : birthValid ? birthMonth : saved.birthMonth,
-      heightCm: height.trim() === "" ? undefined : heightOk ? Math.round(heightValue * 10) / 10 : saved.heightCm,
+      heightCm: heightEmpty ? undefined : heightOk ? keepHeight(saved.heightCm, heightValue) : saved.heightCm,
+      heightUnit,
       activityLevel: activity || undefined,
       // Sotto i 18 anni "dimagrire" non si salva.
       goal: minor && goal === "lose" ? "maintain" : goal,
@@ -136,7 +150,7 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
       saveRef.current();
     }, AUTOSAVE_DELAY);
     return () => clearTimeout(timer);
-  }, [name, sex, month, year, height, weight, unit, activity, goal]);
+  }, [name, sex, month, year, height, feet, inches, heightUnit, weight, unit, activity, goal]);
 
   // Uscendo dalla pagina, chiudendo l'app o passando a un'altra app prima che
   // scatti il timer, si salva subito.
@@ -172,6 +186,34 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
       return;
     }
     change(setSex)(next);
+  }
+
+  /**
+   * In piedi e pollici i valori sono arrotondati al pollice: se corrispondono
+   * ancora all'altezza salvata, si tiene quella (178 cm non diventa 177,8).
+   */
+  function keepHeight(saved: number | undefined, value: number): number {
+    if (heightUnit === "ft" && saved !== undefined) {
+      const a = cmToFeetInches(saved);
+      const b = cmToFeetInches(value);
+      if (a.feet === b.feet && a.inches === b.inches) return saved;
+    }
+    return Math.round(value * 10) / 10;
+  }
+
+  function switchHeightUnit(next: HeightUnit) {
+    if (next === heightUnit) return;
+    // Il valore scritto si converte, così non si perde.
+    if (!heightEmpty && Number.isFinite(heightValue)) {
+      if (next === "ft") {
+        const v = cmToFeetInches(heightValue);
+        setFeet(String(v.feet));
+        setInches(String(v.inches));
+      } else {
+        setHeight(String(keepHeight(profile.get().heightCm, heightValue)));
+      }
+    }
+    change(setHeightUnit)(next);
   }
 
   function switchUnit(next: WeightUnit) {
@@ -291,20 +333,56 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="height" className="label">
-            {t.height}
-          </label>
-          <input
-            id="height"
-            className="field num"
-            inputMode="decimal"
-            placeholder="170"
-            value={height}
-            aria-invalid={!heightOk || undefined}
-            onChange={(e) => change(setHeight)(e.target.value)}
-          />
-        </div>
+        {heightUnit === "cm" ? (
+          <div>
+            <label htmlFor="height" className="label">
+              {interpolate(t.height, { unit: t.heightUnits.cm })}
+            </label>
+            <input
+              id="height"
+              className="field num"
+              inputMode="decimal"
+              placeholder="170"
+              value={height}
+              aria-invalid={!heightOk || undefined}
+              onChange={(e) => change(setHeight)(e.target.value)}
+            />
+          </div>
+        ) : (
+          <fieldset>
+            <legend className="label">{interpolate(t.height, { unit: t.heightUnits.ft })}</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="height-ft" className="sr-only">
+                  {t.feet}
+                </label>
+                <input
+                  id="height-ft"
+                  className="field num"
+                  inputMode="numeric"
+                  placeholder="5"
+                  value={feet}
+                  aria-invalid={!heightOk || undefined}
+                  onChange={(e) => change(setFeet)(e.target.value.replace(/\D/g, "").slice(0, 1))}
+                />
+              </div>
+              <div>
+                <label htmlFor="height-in" className="sr-only">
+                  {t.inches}
+                </label>
+                <input
+                  id="height-in"
+                  className="field num"
+                  inputMode="numeric"
+                  placeholder="7"
+                  value={inches}
+                  aria-invalid={!heightOk || undefined}
+                  onChange={(e) => change(setInches)(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                />
+              </div>
+            </div>
+          </fieldset>
+        )}
         <div>
           <label htmlFor="weight" className="label">
             {interpolate(t.weight, { unit })}
@@ -321,7 +399,7 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
           />
         </div>
       </div>
-      {!heightOk && <Notice tone="error">{t.invalidHeight}</Notice>}
+      {!heightOk && <Notice tone="error">{heightUnit === "cm" ? t.invalidHeight : t.invalidHeightFt}</Notice>}
       {!weightOk && (
         <Notice tone="error">
           {interpolate(t.invalidWeight, {
@@ -334,6 +412,14 @@ function ProfileForm({ initial, initialWeight }: { initial: Profile; initialWeig
       <p id="weight-hint" className="-mt-3 text-footnote text-muted">
         {t.weightHint}
       </p>
+
+      <ChipGroup label={t.heightUnit}>
+        {HEIGHT_UNITS.map((u) => (
+          <Chip key={u} active={heightUnit === u} onClick={() => switchHeightUnit(u)}>
+            {t.heightUnits[u]}
+          </Chip>
+        ))}
+      </ChipGroup>
 
       <ChipGroup label={t.weightUnit}>
         {WEIGHT_UNITS.map((u) => (

@@ -3,6 +3,7 @@ import { brainResultSchema } from "@/lib/brain/history";
 import { consentSchema, dayLogSchema, periodSchema } from "@/lib/health/cycle";
 import { foodEntrySchema } from "@/lib/health/food";
 import { workoutSchema } from "@/lib/health/workouts";
+import { checkInSchema, journalPageSchema } from "@/lib/journal/journal";
 import { bodyWeightSchema, profileSchema } from "@/lib/profile/profile";
 import type { Def, DocDef, ListDef } from "./records";
 
@@ -37,6 +38,8 @@ export const DEFS = {
   cycleConsent: doc("cycle-consent", consentSchema, null),
   cyclePeriods: list("cycle-periods", periodSchema, (p) => p.id),
   cycleDayLogs: list("cycle-day-logs", dayLogSchema, (l) => l.day),
+  checkIns: list("check-ins", checkInSchema, (c) => c.day),
+  journalPages: list("journal-pages", journalPageSchema, (p) => p.day),
 };
 
 export const ALL_DEFS: readonly Def[] = Object.values(DEFS) as Def[];

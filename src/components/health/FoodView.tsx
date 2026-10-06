@@ -8,12 +8,16 @@ import { formatNumber, interpolate } from "@/i18n/format";
 import { addDays, localDateKey } from "@/lib/dates";
 import { dailyTargets } from "@/lib/health/energy";
 import { type FoodEntry, MAX_KCAL, MAX_MACRO_G, MEALS, type Meal, entriesOn, kcalConsistent, macroKcal, mealForHour, recentFoods, totals } from "@/lib/health/food";
+import { foodName } from "@/lib/health/catalog/catalog";
+import { catalogFood } from "@/lib/health/catalog/foods";
+import { useFoodNames } from "@/lib/health/catalog/use-food-names";
 import { addFood, foodEntries } from "@/lib/health/store";
 import { pulseLight } from "@/lib/light/bus";
 import { latestWeight } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
 import { useLocalData } from "@/lib/storage/db";
 import { Chip, ChipGroup, Notice } from "./Chip";
+import { FoodPicker } from "./FoodPicker";
 import { DeleteButton, ProfileMissing, parseDecimal } from "./shared";
 
 export function FoodView() {
@@ -30,6 +34,9 @@ function Food() {
   const [day, setDay] = useState(today);
   const entries = entriesOn(all, day);
   const sum = totals(entries);
+  const names = useFoodNames(locale);
+  // Gli alimenti della tabella si mostrano nella lingua attuale dell'app.
+  const nameOf = (e: FoodEntry) => (e.foodId && names ? foodName(names, e.foodId) : undefined) ?? e.name;
   const targets = dailyTargets(profile.use(), latestWeight(bodyWeights.use())?.kg ?? null);
   const [y, m, d] = day.split("-").map(Number);
   const dayLabel =
@@ -62,7 +69,7 @@ function Food() {
         </Panel>
       )}
 
-      <AddFood day={day} recent={recentFoods(all)} />
+      <AddFood day={day} recent={recentFoods(all)} nameOf={nameOf} />
 
       {entries.length === 0 ? (
         <Panel>
@@ -83,12 +90,12 @@ function Food() {
                 {items.map((e) => (
                   <li key={e.id} className="card flex items-center gap-3 py-2.5 pe-1.5 ps-4">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-subhead font-semibold">{e.name}</p>
+                      <p className="truncate text-subhead font-semibold">{nameOf(e)}</p>
                       <Macros entry={e} />
                     </div>
                     <p className="num text-subhead">{formatNumber(locale, e.kcal)}</p>
                     <DeleteButton
-                      label={interpolate(t.list.delete, { name: e.name })}
+                      label={interpolate(t.list.delete, { name: nameOf(e) })}
                       onClick={() => foodEntries.set((prev) => prev.filter((x) => x.id !== e.id))}
                     />
                   </li>
@@ -112,10 +119,12 @@ function Macros({ entry }: { entry: FoodEntry }) {
       [t.fat, entry.fat],
     ] as const
   ).filter(([, g]) => g !== undefined);
-  if (parts.length === 0) return null;
+  const unit = entry.foodId ? catalogFood(entry.foodId)?.unit : undefined;
+  const amount = entry.amount !== undefined ? `${formatNumber(locale, entry.amount, entry.amount % 1 ? 1 : 0)} ${dict.health.food.units[unit ?? "g"]}` : null;
+  if (parts.length === 0 && !amount) return null;
   return (
     <p className="truncate text-footnote text-muted">
-      {parts.map(([label, g]) => `${label} ${interpolate(t.grams, { n: formatNumber(locale, g!, g! % 1 ? 1 : 0) })}`).join(" · ")}
+      {[amount, ...parts.map(([label, g]) => `${label} ${interpolate(t.grams, { n: formatNumber(locale, g!, g! % 1 ? 1 : 0) })}`)].filter(Boolean).join(" · ")}
     </p>
   );
 }
@@ -169,10 +178,61 @@ function MacroStat({ label, value }: { label: string; value: string }) {
 
 const MACRO_FIELDS = ["protein", "carbs", "fat"] as const;
 
-function AddFood({ day, recent }: { day: string; recent: FoodEntry[] }) {
+function AddFood({ day, recent, nameOf }: { day: string; recent: FoodEntry[]; nameOf: (e: FoodEntry) => string }) {
   const { locale, dict } = useI18n();
   const t = dict.health.food;
   const [meal, setMeal] = useState<Meal>(() => mealForHour(new Date().getHours()));
+  const [manual, setManual] = useState(false);
+
+  return (
+    <Panel>
+      <h2 className="mb-4 text-headline font-semibold">{t.add.title}</h2>
+      <div className="space-y-4">
+        <ChipGroup label={t.add.meal}>
+          {MEALS.map((m) => (
+            <Chip key={m} active={meal === m} onClick={() => setMeal(m)}>
+              {t.meals[m]}
+            </Chip>
+          ))}
+        </ChipGroup>
+        <FoodPicker meal={meal} day={day} />
+        <div>
+          <button type="button" aria-expanded={manual} aria-controls="food-manual" className="link min-h-11 text-subhead" onClick={() => setManual((v) => !v)}>
+            {t.search.manual}
+          </button>
+          {manual && <ManualFood id="food-manual" meal={meal} day={day} />}
+        </div>
+      </div>
+
+      {recent.length > 0 && (
+        <div className="mt-5">
+          <p className="eyebrow mb-2">{t.recent.title}</p>
+          <div className="flex flex-wrap gap-2">
+            {recent.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-label={interpolate(t.recent.add, { name: nameOf(f) })}
+                onClick={() => {
+                  addFood({ meal, name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, foodId: f.foodId, amount: f.amount }, day);
+                  pulseLight(0.25);
+                }}
+                className="card min-h-11 max-w-full truncate rounded-full px-3.5 text-subhead text-ink-2 hover:text-ink"
+              >
+                + {nameOf(f)} <span className="num text-muted">{formatNumber(locale, f.kcal)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+// Inserimento a mano, per ciò che non è nella tabella (o un prodotto con l'etichetta).
+function ManualFood({ id, meal, day }: { id: string; meal: Meal; day: string }) {
+  const { locale, dict } = useI18n();
+  const t = dict.health.food;
   const [name, setName] = useState("");
   const [kcal, setKcal] = useState("");
   const [macros, setMacros] = useState<Record<(typeof MACRO_FIELDS)[number], string>>({ protein: "", carbs: "", fat: "" });
@@ -203,102 +263,69 @@ function AddFood({ day, recent }: { day: string; recent: FoodEntry[] }) {
   }
 
   return (
-    <Panel>
-      <h2 className="mb-4 text-headline font-semibold">{t.add.title}</h2>
-      <form onSubmit={save} className="space-y-4">
-        <ChipGroup label={t.add.meal}>
-          {MEALS.map((m) => (
-            <Chip key={m} active={meal === m} onClick={() => setMeal(m)}>
-              {t.meals[m]}
-            </Chip>
-          ))}
-        </ChipGroup>
-
-        <div className="grid grid-cols-[1fr_6.5rem] gap-3">
-          <div>
-            <label htmlFor="food-name" className="label">
-              {t.add.name}
-            </label>
-            <input
-              id="food-name"
-              className="field"
-              maxLength={80}
-              placeholder={t.add.namePlaceholder}
-              value={name}
-              aria-invalid={error && !name.trim() ? true : undefined}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label htmlFor="food-kcal" className="label">
-              {t.add.kcal}
-            </label>
-            <input
-              id="food-kcal"
-              className="field num"
-              inputMode="decimal"
-              value={kcal}
-              aria-invalid={error && !validKcal ? true : undefined}
-              onChange={(e) => setKcal(e.target.value)}
-            />
-          </div>
-        </div>
-
+    <form id={id} onSubmit={save} className="mt-2 space-y-4">
+      <div className="grid grid-cols-[1fr_6.5rem] gap-3">
         <div>
-          <div className="grid grid-cols-3 gap-3">
-            {MACRO_FIELDS.map((k) => (
-              <div key={k}>
-                <label htmlFor={`food-${k}`} className="label truncate">
-                  {t.add[k]}
-                </label>
-                <input
-                  id={`food-${k}`}
-                  className="field num"
-                  inputMode="decimal"
-                  value={macros[k]}
-                  onChange={(e) => setMacros((prev) => ({ ...prev, [k]: e.target.value }))}
-                />
-              </div>
-            ))}
-          </div>
-          <p className="mt-1.5 text-footnote text-muted">{t.add.macrosHint}</p>
+          <label htmlFor="food-name" className="label">
+            {t.add.name}
+          </label>
+          <input
+            id="food-name"
+            className="field"
+            maxLength={80}
+            placeholder={t.add.namePlaceholder}
+            value={name}
+            aria-invalid={error && !name.trim() ? true : undefined}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
-
-        {mismatch && (
-          <Notice tone="warning">
-            {interpolate(t.add.mismatch, {
-              n: formatNumber(locale, Math.round(macroKcal(macroValues.protein, macroValues.carbs, macroValues.fat))),
-            })}
-          </Notice>
-        )}
-        {error && <Notice tone="error">{t.add.invalid}</Notice>}
-
-        <button type="submit" className="btn btn-primary w-full">
-          {t.add.save}
-        </button>
-      </form>
-
-      {recent.length > 0 && (
-        <div className="mt-5">
-          <p className="eyebrow mb-2">{t.recent.title}</p>
-          <div className="flex flex-wrap gap-2">
-            {recent.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                aria-label={interpolate(t.recent.add, { name: f.name })}
-                onClick={() => {
-                  addFood({ meal, name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat }, day);
-                  pulseLight(0.25);
-                }}
-                className="card min-h-11 max-w-full truncate rounded-full px-3.5 text-subhead text-ink-2 hover:text-ink"
-              >
-                + {f.name} <span className="num text-muted">{formatNumber(locale, f.kcal)}</span>
-              </button>
-            ))}
-          </div>
+        <div>
+          <label htmlFor="food-kcal" className="label">
+            {t.add.kcal}
+          </label>
+          <input
+            id="food-kcal"
+            className="field num"
+            inputMode="decimal"
+            value={kcal}
+            aria-invalid={error && !validKcal ? true : undefined}
+            onChange={(e) => setKcal(e.target.value)}
+          />
         </div>
+      </div>
+
+      <div>
+        <div className="grid grid-cols-3 gap-3">
+          {MACRO_FIELDS.map((k) => (
+            <div key={k}>
+              <label htmlFor={`food-${k}`} className="label truncate">
+                {t.add[k]}
+              </label>
+              <input
+                id={`food-${k}`}
+                className="field num"
+                inputMode="decimal"
+                value={macros[k]}
+                onChange={(e) => setMacros((prev) => ({ ...prev, [k]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-1.5 text-footnote text-muted">{t.add.macrosHint}</p>
+      </div>
+
+      {mismatch && (
+        <Notice tone="warning">
+          {interpolate(t.add.mismatch, {
+            n: formatNumber(locale, Math.round(macroKcal(macroValues.protein, macroValues.carbs, macroValues.fat))),
+          })}
+        </Notice>
       )}
-    </Panel>
+      {error && <Notice tone="error">{t.add.invalid}</Notice>}
+
+      <button type="submit" className="btn btn-primary w-full">
+        {t.add.save}
+      </button>
+    </form>
   );
 }

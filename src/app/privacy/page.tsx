@@ -6,7 +6,8 @@ import { getI18n } from "@/i18n/server";
 import { APP_NAME } from "@/lib/app";
 
 // Descrive cosa fa davvero l'app, con e senza cloud: va aggiornata a ogni dato
-// che il gestore può vedere (oggi: email, date dell'account, piano; il resto è cifrato)
+// che il gestore può vedere (oggi: email, date dell'account, piano, correzioni degli
+// alimenti senza l'account; il resto è cifrato)
 // e a ogni richiesta verso l'esterno (oggi: Supabase con l'account, file sponsor col consenso).
 // TODO prima della pubblicazione: completare i dati del titolare e farla rivedere
 // da un consulente privacy (vedi DA_FARE.md).
@@ -75,6 +76,10 @@ export default async function PrivacyPage() {
 
         <Section title={t.quotes.title}>
           <p>{t.quotes.body}</p>
+        </Section>
+
+        <Section title={t.foodCorrections.title}>
+          <p>{t.foodCorrections.body}</p>
         </Section>
 
         <Section title={t.cookies.title}>
