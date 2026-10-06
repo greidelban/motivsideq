@@ -110,7 +110,7 @@ async function sealRecord(cipher: VaultCipher, r: StoredRecord): Promise<VaultRo
   return {
     id,
     key_id: cipher.keyId,
-    payload: await cipher.seal(id, { c: r.collection, k: r.key, v: deleted ? null : r.value, ca: r.createdAt }),
+    payload: await cipher.seal(id, { c: r.collection, k: r.key, v: deleted ? null : r.value, ca: r.createdAt, d: deleted }),
     updated_at: r.updatedAt,
     deleted_at: r.deletedAt,
   };
@@ -154,13 +154,16 @@ async function pull(db: LocalDb, remote: Remote, cipher: VaultCipher, collection
       // Un elenco che questa versione dell'app non conosce: si ignora, resta nel cloud.
       if (!known.has(content.c)) continue;
       seen.get(content.c)!.add(content.k);
+      // Cancellata o no lo dice la parte cifrata (il server non può cambiarla);
+      // solo le righe inviate prima del 6/10/2026 non lo contengono.
+      const deleted = typeof content.d === "boolean" ? content.d : row.deleted_at !== null;
       const list = byCollection.get(content.c) ?? [];
       list.push({
         key: content.k,
-        value: row.deleted_at ? null : content.v,
+        value: deleted ? null : content.v,
         createdAt: content.ca,
         updatedAt: iso(row.updated_at),
-        deletedAt: row.deleted_at ? iso(row.deleted_at) : null,
+        deletedAt: deleted ? iso(row.deleted_at ?? row.updated_at) : null,
       });
       byCollection.set(content.c, list);
     }

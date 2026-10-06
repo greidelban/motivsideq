@@ -145,6 +145,24 @@ describe("sincronizzazione cifrata", () => {
     expect(a.workouts.get()).toEqual([]);
   });
 
+  it("chi gestisce il server non può cancellare né far ricomparire elementi cambiando deleted_at", async () => {
+    const server = new FakeServer();
+    const cipher = await vaultCipher(newDataKey());
+    const a = await phone(cipher);
+    a.workouts.set([workout("w1"), workout("w2")]);
+    await sync(a, server);
+    a.workouts.set([workout("w1")]); // w2 cancellato davvero
+    await sync(a, server);
+    // Il server segna w1 come cancellato e toglie il segnale da w2 (stesso testo cifrato).
+    for (const row of server.rows.values()) {
+      row.deleted_at = row.deleted_at ? null : "2026-10-04T12:00:00.000Z";
+      row.updated_at = "2026-10-05T00:00:00.000Z";
+    }
+    const b = await phone(cipher);
+    await sync(b, server);
+    expect(b.workouts.get()).toEqual([workout("w1")]);
+  });
+
   it("cancellare i dati del ciclo arriva al cloud e all'altro telefono, e non lascia tracce", async () => {
     const server = new FakeServer();
     const cipher = await vaultCipher(newDataKey());

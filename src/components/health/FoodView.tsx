@@ -6,14 +6,14 @@ import { Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
 import { formatNumber, interpolate } from "@/i18n/format";
 import { addDays, localDateKey } from "@/lib/dates";
-import { dailyTargets } from "@/lib/health/energy";
+import { type DailyTargets, KCAL_FLOOR, KCAL_MAX, checkCustomTargets, dailyTargets, targetKcal } from "@/lib/health/energy";
 import { type FoodEntry, MAX_KCAL, MAX_MACRO_G, MEALS, type Meal, entriesOn, kcalConsistent, macroKcal, mealForHour, recentFoods, totals } from "@/lib/health/food";
 import { foodName } from "@/lib/health/catalog/catalog";
 import { catalogFood } from "@/lib/health/catalog/foods";
 import { useFoodNames } from "@/lib/health/catalog/use-food-names";
 import { addFood, foodEntries } from "@/lib/health/store";
 import { pulseLight } from "@/lib/light/bus";
-import { latestWeight } from "@/lib/profile/profile";
+import { type CustomTargets, MACRO_LIMITS, latestWeight } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
 import { useLocalData } from "@/lib/storage/db";
 import { Chip, ChipGroup, Notice } from "./Chip";
@@ -62,8 +62,8 @@ function Food() {
         </button>
       </div>
 
-      <Summary sum={sum} kcalGoal={targets.kcal} proteinGoal={targets.protein} />
-      {(targets.minor || targets.missing.length > 0) && (
+      <Summary sum={sum} targets={targets} />
+      {(targets.minor || (targets.missing.length > 0 && !targets.custom)) && (
         <Panel className="py-4">
           {targets.minor ? <p className="text-footnote text-ink-2">{t.summary.minor}</p> : <ProfileMissing missing={targets.missing} />}
         </Panel>
@@ -129,9 +129,13 @@ function Macros({ entry }: { entry: FoodEntry }) {
   );
 }
 
-function Summary({ sum, kcalGoal, proteinGoal }: { sum: ReturnType<typeof totals>; kcalGoal: number | null; proteinGoal: number | null }) {
+function Summary({ sum, targets }: { sum: ReturnType<typeof totals>; targets: DailyTargets }) {
   const { locale, dict } = useI18n();
   const t = dict.health.food.summary;
+  const kcalGoal = targets.kcal;
+  const [editing, setEditing] = useState(false);
+  const ofGoal = (value: number, goal: number | null) =>
+    goal ? interpolate(t.gramsOf, { n: n(value), goal: n(goal) }) : interpolate(t.grams, { n: n(value) });
   const n = (v: number) => formatNumber(locale, Math.round(v));
   const progress = kcalGoal ? Math.min(sum.kcal / kcalGoal, 1) : 0;
   const diff = kcalGoal === null ? null : kcalGoal - sum.kcal;
@@ -159,18 +163,111 @@ function Summary({ sum, kcalGoal, proteinGoal }: { sum: ReturnType<typeof totals
         </>
       )}
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <MacroStat label={t.protein} value={proteinGoal ? interpolate(t.gramsOf, { n: n(sum.protein), goal: n(proteinGoal) }) : interpolate(t.grams, { n: n(sum.protein) })} />
-        <MacroStat label={t.carbs} value={interpolate(t.grams, { n: n(sum.carbs) })} />
-        <MacroStat label={t.fat} value={interpolate(t.grams, { n: n(sum.fat) })} />
+        <MacroStat label={t.protein} value={ofGoal(sum.protein, targets.protein)} />
+        <MacroStat label={t.carbs} value={ofGoal(sum.carbs, targets.carbs)} />
+        <MacroStat label={t.fat} value={ofGoal(sum.fat, targets.fat)} />
       </div>
+      {/* Sotto i 18 anni niente obiettivi da scegliere (nessun obiettivo calorico). */}
+      {!targets.minor && (
+        <div className="mt-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3">
+            {(kcalGoal !== null || targets.custom) && (
+              <p className="text-footnote text-muted">{targets.custom ? dict.health.food.targets.custom : dict.health.food.targets.auto}</p>
+            )}
+            <button type="button" className="link min-h-11 text-footnote" aria-expanded={editing} onClick={() => setEditing((v) => !v)}>
+              {editing ? dict.common.cancel : dict.health.food.targets.edit}
+            </button>
+          </div>
+          {editing && <TargetsEditor targets={targets} onDone={() => setEditing(false)} />}
+        </div>
+      )}
     </Panel>
+  );
+}
+
+const TARGET_FIELDS = ["protein", "carbs", "fat"] as const;
+
+// Obiettivi del giorno scelti a mano (grammi): le kcal ne derivano e non
+// possono scendere sotto la soglia minima per sesso (1500 uomini, 1200 donne).
+function TargetsEditor({ targets, onDone }: { targets: DailyTargets; onDone: () => void }) {
+  const { locale, dict } = useI18n();
+  const t = dict.health.food;
+  const sex = profile.use().sex;
+  const start = (k: (typeof TARGET_FIELDS)[number]) => (targets[k] === null ? "" : String(targets[k]));
+  const [values, setValues] = useState({ protein: start("protein"), carbs: start("carbs"), fat: start("fat") });
+  const grams = Object.fromEntries(TARGET_FIELDS.map((k) => [k, parseDecimal(values[k])])) as CustomTargets;
+  const check = checkCustomTargets(grams, sex);
+  const complete = TARGET_FIELDS.every((k) => values[k].trim() !== "");
+  const n = (v: number) => formatNumber(locale, v);
+
+  function save(e: FormEvent) {
+    e.preventDefault();
+    if (check !== "ok") return;
+    profile.set({ ...profile.get(), customTargets: grams });
+    pulseLight(0.4);
+    onDone();
+  }
+
+  return (
+    <form onSubmit={save} className="card mt-2 space-y-3 px-4 py-3">
+      <p className="text-footnote text-muted">{t.targets.hint}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {TARGET_FIELDS.map((k) => (
+          <div key={k}>
+            <label htmlFor={`target-${k}`} className="label truncate text-caption">
+              {t.summary[k]}
+            </label>
+            <input
+              id={`target-${k}`}
+              className="field num"
+              inputMode="numeric"
+              value={values[k]}
+              onChange={(e) => setValues({ ...values, [k]: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+            />
+          </div>
+        ))}
+      </div>
+      {complete && (
+        <p className="num text-subhead text-ink-2" aria-live="polite">
+          {interpolate(t.targets.total, { n: n(Math.round(targetKcal(grams))) })}
+        </p>
+      )}
+      {complete && check === "low" && sex && <p className="text-footnote text-warning">{interpolate(t.targets.low, { min: n(KCAL_FLOOR[sex]) })}</p>}
+      {complete && check === "high" && <p className="text-footnote text-warning">{interpolate(t.targets.high, { max: n(KCAL_MAX) })}</p>}
+      {complete && check === "invalid" && sex && (
+        <p className="text-footnote text-warning">
+          {interpolate(t.targets.invalid, { protein: n(MACRO_LIMITS.protein), carbs: n(MACRO_LIMITS.carbs), fat: n(MACRO_LIMITS.fat) })}
+        </p>
+      )}
+      {!sex && <p className="text-footnote text-warning">{t.targets.needSex}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {targets.custom ? (
+          <button
+            type="button"
+            className="link min-h-11 text-footnote"
+            onClick={() => {
+              profile.set({ ...profile.get(), customTargets: undefined });
+              onDone();
+            }}
+          >
+            {t.targets.reset}
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="submit" className="btn btn-primary" disabled={check !== "ok"}>
+          {t.targets.save}
+        </button>
+      </div>
+    </form>
   );
 }
 
 function MacroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="card px-2 py-2.5">
-      <p className="num truncate text-subhead font-semibold">{value}</p>
+      {/* Con l'obiettivo ("85 / 160 g") il testo è più lungo: più piccolo, mai tagliato. */}
+      <p className={`num font-semibold ${value.length > 6 ? "text-footnote leading-6" : "text-subhead"}`}>{value}</p>
       <p className="truncate text-caption text-muted">{label}</p>
     </div>
   );

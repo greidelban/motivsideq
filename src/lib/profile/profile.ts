@@ -16,6 +16,17 @@ export type Goal = (typeof GOALS)[number];
 
 export const HEIGHT_RANGE = { min: 100, max: 250 } as const;
 export const WEIGHT_RANGE = { min: 25, max: 400 } as const;
+export const WAIST_RANGE = { min: 40, max: 200 } as const;
+/** Limiti degli obiettivi scelti a mano, in grammi al giorno. */
+export const MACRO_LIMITS = { protein: 400, carbs: 1000, fat: 400 } as const;
+
+const grams = (max: number) => z.int().check(z.gte(0), z.lte(max));
+export const customTargetsSchema = z.object({
+  protein: grams(MACRO_LIMITS.protein),
+  carbs: grams(MACRO_LIMITS.carbs),
+  fat: grams(MACRO_LIMITS.fat),
+});
+export type CustomTargets = z.infer<typeof customTargetsSchema>;
 
 /** Nome mostrato nel saluto di Oggi: lo vede solo l'utente. */
 export const NAME_MAX = 16;
@@ -32,6 +43,10 @@ export const profileSchema = z.object({
   weightUnit: z.optional(z.enum(WEIGHT_UNITS)),
   /** Solo per l'interfaccia: l'altezza si salva sempre in cm. */
   heightUnit: z.optional(z.enum(HEIGHT_UNITS)),
+  /** Giro vita in cm (facoltativo): dice se il peso è grasso o muscolo meglio dell'IMC. */
+  waistCm: z.optional(z.number().check(z.gte(WAIST_RANGE.min), z.lte(WAIST_RANGE.max))),
+  /** Obiettivi del giorno scelti dall'utente (grammi); senza, si calcolano dal profilo. */
+  customTargets: z.optional(customTargetsSchema),
 });
 export type Profile = z.infer<typeof profileSchema>;
 

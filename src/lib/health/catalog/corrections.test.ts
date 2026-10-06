@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_CONSENSUS, canCorrect, checkCorrection, needsRefresh, parseConsensusRows, toKcal, withConsensus } from "./corrections";
+import { EMPTY_CONSENSUS, canCorrect, checkCorrection, needsRefresh, parseConsensusRows, plausibleCorrection, toKcal, withConsensus } from "./corrections";
 import { catalogFood } from "./foods";
 
 const now = new Date("2026-10-06T10:00:00Z");
@@ -33,6 +33,18 @@ describe("valori della comunità", () => {
     expect(withConsensus(pasta, items)).toEqual({ food: { ...pasta, kcal: 351.5, protein: 12, carbs: 74, fat: 1 }, votes: 6 });
     const egg = catalogFood("egg")!;
     expect(withConsensus(egg, items)).toEqual({ food: egg, votes: null });
+  });
+
+  it("pochi account falsi non stravolgono un alimento, e le bevande alcoliche restano quelle della tabella", () => {
+    const butter = catalogFood("butter")!; // 717 kcal, 81 g di grassi
+    // Burro a 0 kcal: coerente con i macro, ma troppo lontano dalla tabella.
+    expect(withConsensus(butter, [{ foodId: "butter", votes: 5, kcal: 0, protein: 0, carbs: 0, fat: 0 }]).votes).toBeNull();
+    // Una correzione vera (qualche punto percentuale) passa.
+    expect(withConsensus(butter, [{ foodId: "butter", votes: 5, kcal: 745, protein: 0.6, carbs: 0.7, fat: 82 }]).votes).toBe(5);
+    // Per i valori piccoli conta lo scarto assoluto (5 g, 30 kcal).
+    expect(plausibleCorrection(catalogFood("pasta-dry")!, { kcal: 360, protein: 15, carbs: 72, fat: 4 })).toBe(true);
+    const beer = catalogFood("beer")!;
+    expect(withConsensus(beer, [{ foodId: "beer", votes: 9, kcal: beer.kcal, protein: beer.protein, carbs: beer.carbs, fat: beer.fat }]).votes).toBeNull();
   });
 });
 

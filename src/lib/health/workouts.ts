@@ -1,5 +1,6 @@
 import * as z from "zod/mini";
 import { addDays, localDateKey } from "@/lib/dates";
+import { type DistanceUnit, fromKm } from "@/lib/units";
 import { MAX_EXERCISES, exerciseLogSchema } from "./exercises";
 
 // Tipi di allenamento con i MET (Compendium of Physical Activities, valori
@@ -109,9 +110,52 @@ export function sortRecent<T extends { at: string }>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => b.at.localeCompare(a.at));
 }
 
-/** Secondi al km (per il passo) oppure km/h, secondo il tipo. null se mancano i dati. */
-export function paceOrSpeed(type: WorkoutType, minutes: number, km: number | undefined): { kind: "pace"; secondsPerKm: number } | { kind: "speed"; kmh: number } | null {
+/**
+ * Passo (secondi al km o al miglio) oppure velocità (km/h o mph), secondo il
+ * tipo e l'unità dell'utente. null se mancano i dati.
+ */
+export function paceOrSpeed(
+  type: WorkoutType,
+  minutes: number,
+  km: number | undefined,
+  unit: DistanceUnit = "km",
+): { kind: "pace"; seconds: number } | { kind: "speed"; perHour: number } | null {
   const mode = distanceMode(type);
   if (!mode || !km || km <= 0 || minutes <= 0) return null;
-  return mode === "pace" ? { kind: "pace", secondsPerKm: Math.round((minutes * 60) / km) } : { kind: "speed", kmh: Math.round((km / (minutes / 60)) * 10) / 10 };
+  const distance = fromKm(km, unit);
+  return mode === "pace" ? { kind: "pace", seconds: Math.round((minutes * 60) / distance) } : { kind: "speed", perHour: Math.round((distance / (minutes / 60)) * 10) / 10 };
 }
+
+/** Tipi mostrati in cima a "Registra un allenamento": gli altri dietro un tasto. */
+export const MAX_MY_TYPES = 4;
+
+/** Ultima volta (data e ora) di ogni tipo. */
+function lastUse(workouts: readonly Pick<Workout, "type" | "at">[]): Map<WorkoutType, string> {
+  const last = new Map<WorkoutType, string>();
+  for (const w of workouts) if ((last.get(w.type) ?? "") < w.at) last.set(w.type, w.at);
+  return last;
+}
+
+/** I tipi dell'utente: quelli scelti, oppure (la prima volta) quelli usati di recente. */
+export function myTypes(saved: readonly WorkoutType[], workouts: readonly Pick<Workout, "type" | "at">[]): WorkoutType[] {
+  if (saved.length > 0) return saved.slice(0, MAX_MY_TYPES);
+  return [...lastUse(workouts)]
+    .sort((a, b) => b[1].localeCompare(a[1]))
+    .slice(0, MAX_MY_TYPES)
+    .map(([type]) => type);
+}
+
+/**
+ * Aggiunge un tipo a quelli dell'utente. Se sono già quattro, esce quello
+ * usato meno di recente (mai usato = il primo a uscire).
+ */
+export function addMyType(current: readonly WorkoutType[], type: WorkoutType, workouts: readonly Pick<Workout, "type" | "at">[]): WorkoutType[] {
+  if (current.includes(type)) return [...current];
+  if (current.length < MAX_MY_TYPES) return [...current, type];
+  const last = lastUse(workouts);
+  const out = current.reduce((oldest, t) => ((last.get(t) ?? "") < (last.get(oldest) ?? "") ? t : oldest));
+  return [...current.filter((t) => t !== out), type];
+}
+
+/** Tipo valido (dalla bozza, che è testo). */
+export const isWorkoutType = (v: string): v is WorkoutType => v in WORKOUT_TYPES;

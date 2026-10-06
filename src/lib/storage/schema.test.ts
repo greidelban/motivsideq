@@ -227,5 +227,19 @@ it("le migrazioni rispettano tutte le regole dello schema", { timeout: 60_000 },
   r = await as(A, `select * from food_consensus()`);
   check("dopo il ritiro il voto non conta più", r.rows[0]?.votes === 5 && Number(r.rows[0].kcal) === 351, JSON.stringify(r.rows[0]));
 
+  // Cancellare un account con dati nel cloud: tutto sparisce a cascata, senza errori.
+  r = await admin(`select count(*)::int as n from vault_records where user_id = '${B}'`);
+  check("B ha righe nel cloud prima della cancellazione", r.rows[0].n > 0);
+  const removed = await admin(`delete from auth.users where id = '${B}'`).then(
+    () => null,
+    (e: Error) => e.message,
+  );
+  check("cancellare un account con dati nel cloud", removed === null, removed ?? "");
+  r = await admin(`select (select count(*) from vault_records where user_id = '${B}')::int as rows,
+                          (select count(*) from user_keys where user_id = '${B}')::int as keys,
+                          (select count(*) from vault_usage where user_id = '${B}')::int as usage,
+                          (select count(*) from profiles where id = '${B}')::int as profiles`);
+  check("account cancellato: niente resta", Object.values(r.rows[0]).every((n) => n === 0), JSON.stringify(r.rows[0]));
+
   await db.close();
 });

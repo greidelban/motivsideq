@@ -57,10 +57,25 @@ export function parseConsensusRows(rows: unknown, now: Date = new Date()): Conse
   return { fetchedAt: now.toISOString(), items };
 }
 
-/** L'alimento con i valori della comunità, se ci sono (votes = null: valori della tabella). */
+/**
+ * I valori della comunità possono correggere la tabella, non stravolgerla:
+ * kcal entro il 30% (o 30 kcal), macro entro il 50% (o 5 g). Così pochi
+ * account creati apposta non possono, per esempio, portare il burro a 0 kcal
+ * per tutti (revisione di sicurezza del 6/10/2026).
+ */
+const within = (value: number, base: number, share: number, floor: number) => Math.abs(value - base) <= Math.max(base * share, floor);
+
+export function plausibleCorrection(food: CatalogFood, v: Pick<ConsensusItem, "kcal" | "protein" | "carbs" | "fat">): boolean {
+  return within(v.kcal, food.kcal, 0.3, 30) && within(v.protein, food.protein, 0.5, 5) && within(v.carbs, food.carbs, 0.5, 5) && within(v.fat, food.fat, 0.5, 5);
+}
+
+/**
+ * L'alimento con i valori della comunità, se ci sono (votes = null: valori della
+ * tabella). Mai per le bevande alcoliche (il server non le conosce: lo controlla l'app).
+ */
 export function withConsensus(food: CatalogFood, items: readonly ConsensusItem[]): { food: CatalogFood; votes: number | null } {
   const item = items.find((i) => i.foodId === food.id);
-  if (!item) return { food, votes: null };
+  if (!item || !canCorrect(food) || !plausibleCorrection(food, item)) return { food, votes: null };
   const { kcal, protein, carbs, fat, votes } = item;
   return { food: { ...food, kcal, protein, carbs, fat }, votes };
 }

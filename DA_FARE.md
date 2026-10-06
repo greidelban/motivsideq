@@ -54,7 +54,7 @@ Deciso con l'utente: prima una tabella dentro l'app, poi correzioni dagli utenti
 - [ ] Far rivedere i nomi degli alimenti da madrelingua (soprattutto arabo, ebraico, cinese, polacco).
 - [ ] Ampliare la tabella (piatti tipici per paese, prodotti da forno, bevande vegetali, salse) man mano.
 - [x] Correzioni "stile Wikipedia" (deciso con l'utente: solo account verificati, media di tutti): "Valori sbagliati? Correggili" sotto l'alimento scelto; energia in kcal o kJ, proteine, carboidrati, grassi per 100 g/ml; stesse regole di coerenza dell'app anche nel database; un voto per persona (si può rimandare per cambiarlo); da 5 voti l'app mostra e usa la mediana ("Corretto dalla comunità"); 30 correzioni al giorno al massimo; informativa aggiornata in 11 lingue. Provato con i test del database (PGlite) e nel browser (modulo, kcal↔kJ, richiesta di account).
-- [ ] **Eseguire online la migrazione `20261006090000_food_corrections.sql`**: `npm run db:bundle -- 20261006090000`, poi incollare `supabase/setup-completo.sql` nello SQL Editor.
+- [x] Migrazione `20261006090000_food_corrections.sql` eseguita online il 6/10/2026 (verificato dall'esterno: `food_consensus` esiste ed è negata agli anonimi).
 - [ ] Provare l'invio vero con un account verificato (sul Supabase del PC con `npm run dev:local-db`, poi online).
 - [ ] La futura cancellazione dell'account deve chiamare prima `withdraw_food_corrections()` (le correzioni non sono legate all'account con una chiave esterna).
 - [ ] Moderazione: oggi basta la mediana; se servisse, una lista di alimenti bloccati o un minimo di voti più alto.
@@ -69,11 +69,25 @@ Deciso con l'utente: prima una tabella dentro l'app, poi correzioni dagli utenti
 - [x] Distanza per corsa, camminata, escursione, nuoto, vogatore (passo al km) e bici (km/h).
 - [x] L'allenamento in corso resta anche chiudendo l'app (bozza sul telefono), "Scarta questo allenamento".
 - [x] Storico con esercizi, serie, volume e distanza. Provato nel browser (italiano 375 px, ebraico 320 px).
+- [x] (6/10/2026, richieste del proprietario) Recupero con un cursore da 15 s a 5 min (anche 30 s), ricordato sul telefono, "+15 s" mentre conta.
+- [x] Esercizi da 39 a 99 (macchinari, cavi, corpo libero, funzionale), ognuno con i muscoli che allena (il principale per primo) e l'attrezzo; ricerca anche per altri nomi ("military press", "lat machine", "panca piana"), per muscolo ("tricipiti") o attrezzo ("macchina"); si sfoglia per parte del corpo.
+- [x] "I tuoi allenamenti": in cima solo i tipi scelti (al massimo 4), gli altri dietro "+ Altri tipi"; con 4 tipi, uno nuovo prende il posto di quello usato meno di recente.
+- [x] kg/lb anche dentro l'allenamento (i pesi già scritti si convertono); chi usa le libbre vede le distanze in miglia (passo al miglio, mph). Unità di partenza dal paese del telefono (Stati Uniti: libbre e piedi).
+- [x] Intensità spiegata: serve solo a stimare le calorie (leggera = si parla bene, media = fiato corto, intensa = poche parole).
+- [ ] Far rivedere da madrelingua i 60 esercizi nuovi, i muscoli e gli attrezzi.
 - [ ] Notifica locale alla fine del recupero quando l'app è in secondo piano (con Capacitor).
 - [ ] Modificare un allenamento già salvato (oggi si cancella e si rifà).
 - [ ] Schede/routine salvate ("Giorno A: petto e tricipiti") da ripetere.
 - [ ] Grafico dei progressi per esercizio; distanza anche in miglia per chi usa le libbre.
 - [ ] Far rivedere i nomi degli esercizi da madrelingua.
+
+## 0h. Peso per l'altezza e obiettivi del giorno (6/10/2026)
+- [x] Impostazioni → Profilo: IMC con le categorie dell'OMS e il peso consigliato per l'altezza; giro vita facoltativo (cm o pollici).
+- [x] Chi si allena con i pesi almeno 8 volte in 4 settimane: avviso che con tanto muscolo l'IMC risulta alto; il giro vita (meno di metà dell'altezza) dice se è muscolo.
+- [x] Sotto i 18 anni nessun giudizio sul peso (servono le curve di crescita per età e sesso): solo un rimando al medico. **Da confermare con l'utente** (alternativa: tabelle dell'OMS per età, da prendere da una fonte ufficiale).
+- [x] Cibo: obiettivi di proteine, carboidrati e grassi. Calcolo automatico: proteine come prima, grassi al 30% delle kcal, il resto carboidrati. "Personalizza gli obiettivi" in grammi; le kcal ne derivano e non scendono sotto 1500 (uomini) / 1200 (donne); sotto i 18 anni niente obiettivi.
+- [x] La soglia minima ora dipende dal sesso anche nel calcolo automatico (prima era 1200 per tutti, diverso da quanto deciso).
+- [ ] Far rivedere i testi da madrelingua e (prima del lancio) da un consulente: messaggi sul peso.
 
 ## 0g. Andamento (insight), prima versione (6/10/2026)
 - [x] Schermata "Andamento" (da Oggi): riepilogo del periodo; sonno → umore ed energia; allenamento → umore ed energia; sonno → riflessi (gioco Reazione); Ciclo → umore ed energia (solo con il Ciclo attivo); giorno migliore della settimana. 30 o 90 giorni. Tutto calcolato sul telefono.
@@ -117,6 +131,15 @@ Il login si fa nel browser con `@supabase/supabase-js` (`src/lib/supabase/client
   - [x] "Esci e togli i dati da questo dispositivo" (pagina Account): prima un ultimo invio, poi avvisa se qualcosa esiste solo sul telefono; toglie anche la chiave;
   - [x] tetti di righe e di spazio per utente (errore `RL002`, messaggio nella pagina Account);
   - [ ] per lo scanner dei codici a barre sul web servirà togliere `camera=()` da `Permissions-Policy` (`next.config.ts`).
+- [x] Revisione di sicurezza del 6/10/2026:
+  - [x] cancellare un account con dati nel cloud falliva (errore sul contatore dello spazio): corretto con la migrazione `20261006120000_vault_usage_delete.sql`, provato in `schema.test.ts`;
+  - [x] migrazione `20261006120000_vault_usage_delete.sql` eseguita online il 6/10/2026 (insieme a quella degli alimenti, nello stesso file);
+  - nota: in PowerShell `npm` è bloccato dalla politica degli script; usare `npm.cmd` (es. `npm.cmd run db:bundle -- <data>`);
+  - [x] valori degli alimenti dalla comunità: l'app li usa solo se restano vicini a quelli della tabella (kcal ±30% o 30 kcal, macro ±50% o 5 g) e mai per le bevande alcoliche; il modulo lo dice subito. Così 5 account creati apposta non possono stravolgere un alimento;
+  - [x] sincronizzazione: "cancellato" ora viaggia anche dentro la parte cifrata, quindi chi gestisce il server non può far sparire o ricomparire elementi. Resta possibile (come in ogni sistema di questo tipo) rimandare una versione vecchia di un elemento: non si legge nulla, ma si potrebbe "tornare indietro";
+  - [ ] il repository su GitHub è pubblico: nessuna chiave dentro (controllata tutta la storia), ma note e decisioni sono visibili. Valutare se renderlo privato;
+  - [ ] copia di sicurezza (JSON) non cifrata: aggiungere un avviso prima del download o una password facoltativa;
+  - [ ] `npm audit`: 5 avvisi solo negli strumenti di sviluppo (eslint-config-next → braces), non nell'app. Aspettare un aggiornamento, mai `npm audit fix --force`.
 - [x] Spazio locale: indicatore nelle Impostazioni (tetto 1 GB, `src/lib/storage/quota.ts`). Da far rispettare quando arriveranno le foto.
 
 ## 0c. Ciclo: uso quotidiano (5/10/2026)

@@ -10,15 +10,19 @@ import { localDateKey } from "@/lib/dates";
 import { type ExerciseLog, type PersonalRecord, exerciseHistory, isExerciseId, newRecords, totalSets, volumeKg } from "@/lib/health/exercises";
 import { addWorkout, workouts } from "@/lib/health/store";
 import { type WorkoutDraft, workoutDraft } from "@/lib/health/workout-draft";
-import { distanceFromForm, exercisesFromForm, formatPace } from "@/lib/health/workout-form";
+import { savedTypes, trainingPrefs } from "@/lib/health/training-prefs";
+import { convertWeightText, distanceFromForm, exercisesFromForm, formatPace } from "@/lib/health/workout-form";
 import {
   type Intensity,
   MAX_MINUTES,
+  MAX_MY_TYPES,
   WORKOUT_CATEGORIES,
   type Workout,
   type WorkoutType,
+  addMyType,
   distanceMode,
   hasExercises,
+  myTypes,
   paceOrSpeed,
   sortRecent,
   typesIn,
@@ -28,8 +32,9 @@ import {
 import { pulseLight } from "@/lib/light/bus";
 import { latestWeight } from "@/lib/profile/profile";
 import { bodyWeights, profile } from "@/lib/profile/store";
+import { useUnits } from "@/lib/profile/use-units";
 import { useLocalData } from "@/lib/storage/db";
-import { type WeightUnit, fromKg } from "@/lib/units";
+import { type DistanceUnit, type WeightUnit, fromKg, fromKm } from "@/lib/units";
 import { Chip, Notice } from "./Chip";
 import { ExercisesEditor, useSetsLabel } from "./ExercisesEditor";
 import { DeleteButton, ProfileMissing, useShortDate } from "./shared";
@@ -87,7 +92,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const newDraft = (today: string, type: WorkoutType = "gym"): WorkoutDraft => ({
+const newDraft = (today: string, type: WorkoutType): WorkoutDraft => ({
   type,
   minutes: "45",
   intensity: 2,
@@ -100,17 +105,22 @@ const newDraft = (today: string, type: WorkoutType = "gym"): WorkoutDraft => ({
 function LogWorkout({ weight, today }: { weight: number | null; today: string }) {
   const { locale, dict } = useI18n();
   const t = dict.health.training;
-  const unit = profile.use().weightUnit ?? "kg";
+  const units = useUnits();
+  const unit = units.weight;
+  const list = workouts.use();
+  const prefs = trainingPrefs.use();
+  const mine = myTypes(savedTypes(prefs.types), list);
   const stored = workoutDraft.use();
-  const draft = stored ?? newDraft(today);
+  const draft = stored ?? newDraft(today, mine[0] ?? "gym");
   const type = draft.type as WorkoutType;
+  const [allTypes, setAllTypes] = useState(false);
   const [status, setStatus] = useState<"saved" | "invalid" | null>(null);
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const name = useExerciseName();
 
   // Ogni modifica finisce subito nella bozza: l'allenamento in corso non si perde.
   const update = (patch: Partial<WorkoutDraft>) => {
-    workoutDraft.set({ ...(workoutDraft.get() ?? newDraft(today)), ...patch });
+    workoutDraft.set({ ...(workoutDraft.get() ?? newDraft(today, type)), ...patch });
     setStatus(null);
     setRecords([]);
   };
@@ -118,8 +128,29 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
   const mins = Number(draft.minutes);
   const validMinutes = Number.isInteger(mins) && mins >= 1 && mins <= MAX_MINUTES;
   const estimate = validMinutes ? workoutKcal({ type, minutes: mins, intensity: draft.intensity }, weight) : null;
-  const km = distanceMode(type) ? distanceFromForm(draft.distance) : undefined;
-  const pace = validMinutes ? paceOrSpeed(type, mins, km) : null;
+  const km = distanceMode(type) ? distanceFromForm(draft.distance, units.distance) : undefined;
+  const pace = validMinutes ? paceOrSpeed(type, mins, km, units.distance) : null;
+
+  /** Sceglie un tipo; uno nuovo entra tra quelli in cima (al massimo MAX_MY_TYPES). */
+  function chooseType(id: WorkoutType) {
+    const next = addMyType(mine, id, list);
+    if (next.join() !== savedTypes(prefs.types).join()) trainingPrefs.set({ ...trainingPrefs.get(), types: next });
+    update({ type: id });
+    setAllTypes(false);
+  }
+
+  /** Cambio kg/lb durante l'allenamento: i pesi già scritti si convertono. */
+  function changeUnit(next: WeightUnit) {
+    if (next === unit) return;
+    profile.set({ ...profile.get(), weightUnit: next });
+    const current = workoutDraft.get();
+    if (current) {
+      workoutDraft.set({
+        ...current,
+        exercises: current.exercises.map((e) => ({ ...e, sets: e.sets.map((set) => ({ ...set, weight: convertWeightText(set.weight, unit, next) })) })),
+      });
+    }
+  }
 
   function save(e: FormEvent) {
     e.preventDefault();
@@ -129,6 +160,8 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
     }
     const exercises = hasExercises(type) ? exercisesFromForm(draft.exercises, unit) : [];
     const previous = workouts.get();
+    // Il primo allenamento di un tipo lo mette anche tra quelli in cima.
+    if (!mine.includes(type)) trainingPrefs.set({ ...trainingPrefs.get(), types: addMyType(mine, type, previous) });
     const saved = addWorkout({
       type,
       minutes: mins,
@@ -158,22 +191,45 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
       <h2 className="mb-4 text-headline font-semibold">{t.log.title}</h2>
       <form onSubmit={save} className="space-y-5">
         <fieldset className="space-y-3">
-          <legend className="label">{t.log.type}</legend>
-          {WORKOUT_CATEGORIES.map((category) => (
-            <div key={category}>
-              <p className="eyebrow mb-2">{t.categories[category]}</p>
-              <div className="flex flex-wrap gap-2">
-                {typesIn(category).map((id) => (
-                  <Chip key={id} active={type === id} onClick={() => update({ type: id })}>
-                    {t.types[id]}
-                  </Chip>
-                ))}
-              </div>
+          <legend className="label">{mine.length > 0 ? t.log.myTypes : t.log.type}</legend>
+          {mine.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {mine.map((id) => (
+                <Chip key={id} active={type === id} onClick={() => chooseType(id)}>
+                  {t.types[id]}
+                </Chip>
+              ))}
+              <button
+                type="button"
+                aria-expanded={allTypes}
+                aria-controls="all-workout-types"
+                onClick={() => setAllTypes((v) => !v)}
+                className="link min-h-11 px-2 text-subhead"
+              >
+                {allTypes ? t.log.hideTypes : `+ ${t.log.moreTypes}`}
+              </button>
             </div>
-          ))}
+          )}
+          {(mine.length === 0 || allTypes) && (
+            <div id="all-workout-types" className="space-y-3">
+              {mine.length === 0 && <p className="text-footnote text-muted">{interpolate(t.log.typesHint, { n: MAX_MY_TYPES })}</p>}
+              {WORKOUT_CATEGORIES.map((category) => (
+                <div key={category}>
+                  <p className="eyebrow mb-2">{t.categories[category]}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {typesIn(category).map((id) => (
+                      <Chip key={id} active={type === id} onClick={() => chooseType(id)}>
+                        {t.types[id]}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </fieldset>
 
-        {hasExercises(type) && <ExercisesEditor exercises={draft.exercises} unit={unit} onChange={(exercises) => update({ exercises })} />}
+        {hasExercises(type) && <ExercisesEditor exercises={draft.exercises} unit={unit} onUnitChange={changeUnit} onChange={(exercises) => update({ exercises })} />}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -200,7 +256,7 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
         {distanceMode(type) && (
           <div>
             <label htmlFor="workout-distance" className="label">
-              {t.distance.label}
+              {interpolate(t.distance.label, { unit: units.distance })}
             </label>
             <input
               id="workout-distance"
@@ -212,19 +268,24 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
             {pace && (
               <p className="mt-1.5 text-footnote text-ink-2" aria-live="polite">
                 {pace.kind === "pace"
-                  ? interpolate(t.distance.pace, { pace: formatPace(pace.secondsPerKm) })
-                  : interpolate(t.distance.speed, { n: formatNumber(locale, pace.kmh, 1) })}
+                  ? interpolate(t.distance.pace, { pace: formatPace(pace.seconds), unit: units.distance })
+                  : interpolate(t.distance.speed, { n: formatNumber(locale, pace.perHour, 1), unit: speedUnit(units.distance) })}
               </p>
             )}
           </div>
         )}
 
-        <Segmented
-          label={t.log.intensity}
-          value={draft.intensity}
-          onChange={(intensity: Intensity) => update({ intensity })}
-          options={([1, 2, 3] as const).map((v) => ({ value: v, label: t.log.intensities[INTENSITY_KEYS[v]] }))}
-        />
+        <div>
+          <Segmented
+            label={t.log.intensity}
+            value={draft.intensity}
+            onChange={(intensity: Intensity) => update({ intensity })}
+            options={([1, 2, 3] as const).map((v) => ({ value: v, label: t.log.intensities[INTENSITY_KEYS[v]] }))}
+          />
+          <p className="mt-1.5 text-footnote text-muted">
+            {t.log.intensityHints[INTENSITY_KEYS[draft.intensity]]}. {t.log.intensityHint}
+          </p>
+        </div>
 
         <div>
           <label htmlFor="workout-note" className="label">
@@ -272,7 +333,7 @@ function LogWorkout({ weight, today }: { weight: number | null; today: string })
 function Progress({ list }: { list: readonly Workout[] }) {
   const { locale, dict } = useI18n();
   const t = dict.health.training.progress;
-  const unit = profile.use().weightUnit ?? "kg";
+  const unit = useUnits().weight;
   const shortDate = useShortDate();
   const name = useExerciseName();
   const setsLabel = useSetsLabel(unit);
@@ -307,14 +368,14 @@ function Progress({ list }: { list: readonly Workout[] }) {
 function History({ list, weight }: { list: readonly Workout[]; weight: number | null }) {
   const { locale, dict } = useI18n();
   const t = dict.health.training;
-  const unit = profile.use().weightUnit ?? "kg";
+  const { weight: unit, distance: distanceUnit } = useUnits();
   const shortDate = useShortDate();
   const name = useExerciseName();
 
   const details = (w: Workout) => {
     const parts = [shortDate(w.day), t.log.intensities[INTENSITY_KEYS[w.intensity]]];
     if (w.exercises?.length) parts.push(exercisesSummary(w.exercises, name, (n) => formatNumber(locale, n)));
-    if (w.distanceKm) parts.push(`${formatNumber(locale, w.distanceKm, w.distanceKm % 1 ? 1 : 0)} km`);
+    if (w.distanceKm) parts.push(distanceText(locale, w.distanceKm, distanceUnit));
     if (w.note) parts.push(w.note);
     return parts.join(" · ");
   };
@@ -368,6 +429,15 @@ function weightText(locale: Locale, kg: number, unit: WeightUnit): string {
   const v = fromKg(kg, unit);
   return formatNumber(locale, v, v % 1 ? 1 : 0);
 }
+
+/** "5 km", "3,1 mi": un decimale solo se serve. */
+function distanceText(locale: Locale, km: number, unit: DistanceUnit): string {
+  const v = Math.round(fromKm(km, unit) * 10) / 10;
+  return `${formatNumber(locale, v, v % 1 ? 1 : 0)} ${unit}`;
+}
+
+/** Simbolo della velocità: km/h o mph. */
+const speedUnit = (unit: DistanceUnit) => (unit === "mi" ? "mph" : "km/h");
 
 /** "Panca piana, Squat +2": i primi due esercizi e quanti altri. */
 function exercisesSummary(exercises: readonly ExerciseLog[], name: (log: ExerciseLog) => string, n: (v: number) => string): string {

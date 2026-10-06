@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween } from "@/lib/dates";
 import { cleanName, effectiveGoal, isBirthAllowed, latestWeight, profileSchema, upsertWeight } from "@/lib/profile/profile";
-import { bmrMifflin, dailyTargets } from "./energy";
+import { bmrMifflin, checkCustomTargets, dailyTargets, targetKcal } from "./energy";
 import { type FoodEntry, kcalConsistent, mealForHour, recentFoods, totals } from "./food";
 import { type Workout, weekStart, weekSummary, workoutKcal } from "./workouts";
 
@@ -49,9 +49,32 @@ describe("fabbisogno", () => {
     expect(dailyTargets({ ...adult, goal: "gain" }, 80, TODAY)).toMatchObject({ kcal: 3060 });
   });
 
-  it("non scende mai sotto il basale né sotto 1200", () => {
+  it("non scende mai sotto il basale né sotto la soglia (1200 donne, 1500 uomini)", () => {
     const small = { sex: "female", heightCm: 150, birthYear: 1950, birthMonth: 1, activityLevel: "sedentary", goal: "lose" } as const;
     expect(dailyTargets(small, 45, TODAY).kcal).toBe(1200);
+    expect(dailyTargets({ ...small, sex: "male" }, 45, TODAY).kcal).toBe(1500);
+  });
+
+  it("carboidrati e grassi: 30% delle kcal dai grassi, il resto (tolte le proteine) carboidrati", () => {
+    const t = dailyTargets({ ...adult, goal: "maintain" }, 80, TODAY);
+    // 2760 kcal, 96 g di proteine: grassi 2760 × 0,3 / 9 = 92 g; carboidrati (2760 − 384 − 828) / 4 = 387 g.
+    expect(t).toMatchObject({ kcal: 2760, protein: 96, fat: 92, carbs: 387, custom: false });
+  });
+
+  it("obiettivi scelti a mano: valgono solo sopra la soglia e mai sotto i 18 anni", () => {
+    const custom = { protein: 150, carbs: 250, fat: 70 };
+    expect(targetKcal(custom)).toBe(2230);
+    expect(dailyTargets({ ...adult, customTargets: custom }, 80, TODAY)).toMatchObject({ kcal: 2230, ...custom, custom: true });
+    // Basta il sesso: gli altri dati del profilo non servono.
+    expect(dailyTargets({ sex: "female", customTargets: custom }, null, TODAY)).toMatchObject({ kcal: 2230, custom: true });
+    expect(checkCustomTargets({ protein: 100, carbs: 150, fat: 40 }, "male")).toBe("low"); // 1360 kcal
+    expect(checkCustomTargets({ protein: 100, carbs: 150, fat: 40 }, "female")).toBe("ok");
+    expect(checkCustomTargets({ protein: 100, carbs: 150, fat: 40 }, undefined)).toBe("invalid");
+    expect(checkCustomTargets({ protein: 400, carbs: 1000, fat: 100 }, "male")).toBe("high");
+    // Una scelta troppo bassa salvata (es. dopo un cambio di sesso) non vale: si torna al calcolo.
+    expect(dailyTargets({ ...adult, customTargets: { protein: 100, carbs: 150, fat: 40 } }, 80, TODAY).custom).toBe(false);
+    const teen = { ...adult, birthYear: 2010, customTargets: custom } as const;
+    expect(dailyTargets(teen, 60, TODAY)).toMatchObject({ kcal: null, carbs: null, fat: null, custom: false, minor: true });
   });
 
   it("dice cosa manca", () => {

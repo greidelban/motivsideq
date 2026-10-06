@@ -1,7 +1,21 @@
 import * as z from "zod/mini";
 import { describe, expect, it } from "vitest";
 import { en } from "@/i18n/dictionaries/en";
-import { bestOf, estimated1rm, exerciseHistory, exerciseKey, newRecords, searchExercises, setSchema, totalSets, volumeKg } from "./exercises";
+import { it as it_ } from "@/i18n/dictionaries/it";
+import {
+  EXERCISE_GROUPS,
+  bestOf,
+  estimated1rm,
+  exerciseDef,
+  exerciseHistory,
+  exerciseKey,
+  exercisesIn,
+  newRecords,
+  searchExercises,
+  setSchema,
+  totalSets,
+  volumeKg,
+} from "./exercises";
 import { distanceMode, hasExercises, paceOrSpeed, workoutSchema } from "./workouts";
 
 const workout = (id: string, day: string, exercises: { exercise: string; name?: string; sets: { reps?: number; kg?: number; seconds?: number }[] }[]) => ({
@@ -95,12 +109,37 @@ describe("ricerca degli esercizi", () => {
     expect(ids).toContain("benchPress");
     expect(searchExercises(en.health.training.exercises, " ")).toEqual([]);
   });
+
+  it("trova anche gli altri nomi (military press) e cerca per muscolo o attrezzo", () => {
+    const t = it_.health.training;
+    const labels = { muscles: t.muscles, equipment: t.equipment };
+    expect(searchExercises(t.exercises, "military", 8, labels)[0]).toBe("overheadPress");
+    expect(searchExercises(t.exercises, "lat machine", 8, labels)).toEqual(["latPulldown"]);
+    // Per muscolo: prima gli esercizi in cui è il muscolo principale.
+    const triceps = searchExercises(t.exercises, "tricipiti", 40, labels);
+    expect(triceps.slice(0, 3).every((id) => exerciseDef(id).muscles[0] === "triceps")).toBe(true);
+    expect(searchExercises(t.exercises, "macchina", 40, labels).every((id) => exerciseDef(id).equipment === "machine" || /macchina/i.test(t.exercises[id]))).toBe(true);
+  });
+
+  it("ogni esercizio ha un gruppo, almeno un muscolo e un attrezzo; i gruppi coprono tutto l'elenco", () => {
+    const ids = Object.keys(en.health.training.exercises);
+    expect(ids.length).toBeGreaterThanOrEqual(99);
+    for (const id of ids) {
+      const def = exerciseDef(id);
+      expect(def.muscles.length, id).toBeGreaterThan(0);
+      expect(new Set(def.muscles).size, id).toBe(def.muscles.length);
+    }
+    expect(EXERCISE_GROUPS.flatMap((g) => exercisesIn(g)).sort()).toEqual([...ids].sort());
+  });
 });
 
 describe("distanza", () => {
   it("passo per corsa e camminata, velocità per la bici", () => {
-    expect(paceOrSpeed("running", 25, 5)).toEqual({ kind: "pace", secondsPerKm: 300 });
-    expect(paceOrSpeed("cycling", 90, 45)).toEqual({ kind: "speed", kmh: 30 });
+    expect(paceOrSpeed("running", 25, 5)).toEqual({ kind: "pace", seconds: 300 });
+    expect(paceOrSpeed("cycling", 90, 45)).toEqual({ kind: "speed", perHour: 30 });
+    // In miglia: 5 km in 25 minuti = 8:03 al miglio; 45 km in 90 minuti = 18,6 mph.
+    expect(paceOrSpeed("running", 25, 5, "mi")).toEqual({ kind: "pace", seconds: 483 });
+    expect(paceOrSpeed("cycling", 90, 45, "mi")).toEqual({ kind: "speed", perHour: 18.6 });
     expect(paceOrSpeed("running", 25, undefined)).toBeNull();
     expect(paceOrSpeed("yoga", 25, 5)).toBeNull();
   });
@@ -114,7 +153,7 @@ describe("distanza", () => {
 });
 
 describe("dal modulo ai dati", async () => {
-  const { distanceFromForm, exercisesFromForm, formatPace } = await import("./workout-form");
+  const { convertWeightText, distanceFromForm, exercisesFromForm, formatPace } = await import("./workout-form");
   const set = (reps: string, weight = "", seconds = "") => ({ reps, weight, seconds });
 
   it("serie vuote tolte, virgola accettata, libbre in kg", () => {
@@ -146,5 +185,13 @@ describe("dal modulo ai dati", async () => {
     expect(distanceFromForm("")).toBeUndefined();
     expect(distanceFromForm("0")).toBeUndefined();
     expect(formatPace(307)).toBe("5:07");
+    expect(distanceFromForm("3,1", "mi")).toBe(4.99);
+  });
+
+  it("al cambio kg/lb i pesi scritti si convertono", () => {
+    expect(convertWeightText("100", "kg", "lb")).toBe("220.5");
+    expect(convertWeightText("225", "lb", "kg")).toBe("102.1");
+    expect(convertWeightText("", "kg", "lb")).toBe("");
+    expect(convertWeightText("80", "kg", "kg")).toBe("80");
   });
 });

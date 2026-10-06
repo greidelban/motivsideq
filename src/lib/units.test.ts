@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { cmToFeetInches, feetInchesToCm, fromKg, toKg } from "./units";
+import { cmToFeetInches, cmToInches, defaultUnits, feetInchesToCm, fromKg, fromKm, inchesToCm, prefersImperial, toKg, toKm } from "./units";
+
+describe("unità del paese", () => {
+  it("libbre e piedi negli Stati Uniti, kg e cm altrove", () => {
+    expect(prefersImperial(["en-US", "en"])).toBe(true);
+    expect(prefersImperial(["es-US"])).toBe(true);
+    expect(prefersImperial(["en-GB"])).toBe(false);
+    expect(prefersImperial(["it-IT", "en-US"])).toBe(false);
+    // Senza paese non si sa: si resta sul sistema metrico.
+    expect(prefersImperial(["en"])).toBe(false);
+    expect(prefersImperial([])).toBe(false);
+    expect(defaultUnits(["en-US"])).toEqual({ weight: "lb", height: "ft" });
+    expect(defaultUnits(["fr-FR"])).toEqual({ weight: "kg", height: "cm" });
+  });
+
+  it("miglia e pollici", () => {
+    expect(toKm(3.1, "mi")).toBe(4.99);
+    expect(toKm(5, "km")).toBe(5);
+    expect(Math.round(fromKm(10, "mi") * 100) / 100).toBe(6.21);
+    expect(cmToInches(81.3)).toBe(32);
+    expect(inchesToCm(32)).toBe(81.3);
+  });
+});
 
 describe("unità", () => {
   it("kg e libbre", () => {

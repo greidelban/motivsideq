@@ -33,3 +33,46 @@ export function cmToFeetInches(cm: number): { feet: number; inches: number } {
   const total = Math.round(cm / CM_PER_INCH);
   return { feet: Math.floor(total / 12), inches: total % 12 };
 }
+
+/** Paesi che usano libbre, piedi e miglia nella vita di tutti i giorni. */
+const IMPERIAL_REGIONS = new Set(["US", "LR", "MM"]);
+
+/** Le lingue del telefono indicano un paese con libbre e piedi? (es. "en-US"). */
+export function prefersImperial(languages: readonly string[]): boolean {
+  for (const tag of languages) {
+    try {
+      const region = new Intl.Locale(tag).maximize().region;
+      // Conta la prima lingua con un paese esplicito: "en" da solo non dice nulla.
+      if (tag.includes("-") && region) return IMPERIAL_REGIONS.has(region);
+    } catch {
+      // Etichetta non valida: si passa alla prossima.
+    }
+  }
+  return false;
+}
+
+/** Unità di partenza finché l'utente non ne sceglie una (dalle lingue del telefono). */
+export function defaultUnits(languages: readonly string[]): { weight: WeightUnit; height: HeightUnit } {
+  return prefersImperial(languages) ? { weight: "lb", height: "ft" } : { weight: "kg", height: "cm" };
+}
+
+export type DistanceUnit = "km" | "mi";
+const KM_PER_MILE = 1.609344;
+
+/** Chi usa le libbre misura le distanze in miglia. */
+export const distanceUnitFor = (weight: WeightUnit): DistanceUnit => (weight === "lb" ? "mi" : "km");
+
+/** Da unità dell'utente a km (precisione salvata: 0,01 km). */
+export function toKm(value: number, unit: DistanceUnit): number {
+  return Math.round((unit === "mi" ? value * KM_PER_MILE : value) * 100) / 100;
+}
+
+/** Da km all'unità dell'utente, senza arrotondare (lo fa chi mostra il numero). */
+export function fromKm(km: number, unit: DistanceUnit): number {
+  return unit === "mi" ? km / KM_PER_MILE : km;
+}
+
+/** Da cm a pollici (giro vita), un decimale. */
+export const cmToInches = (cm: number) => Math.round((cm / CM_PER_INCH) * 10) / 10;
+/** Da pollici a cm, un decimale. */
+export const inchesToCm = (inches: number) => Math.round(inches * CM_PER_INCH * 10) / 10;

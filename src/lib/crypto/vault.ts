@@ -23,8 +23,12 @@ const DATA_KEY_BYTES = 32;
 const CODE_BYTES = 20;
 const CODE_GROUP = 4;
 
-/** Contenuto cifrato di una riga: elenco locale, chiave, valore (null = cancellato), data di creazione. */
-type Sealed = { c: string; k: string; v: unknown; ca: string };
+/**
+ * Contenuto cifrato di una riga: elenco locale, chiave, valore (null = cancellato),
+ * data di creazione e, dal 6/10/2026, se è cancellata (d): così chi gestisce il
+ * server non può segnare come cancellato un elemento (deleted_at è in chiaro).
+ */
+type Sealed = { c: string; k: string; v: unknown; ca: string; d?: boolean };
 
 export type VaultCipher = {
   keyId: string;

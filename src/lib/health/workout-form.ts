@@ -1,4 +1,4 @@
-import { type WeightUnit, toKg } from "@/lib/units";
+import { type DistanceUnit, type WeightUnit, toKg, toKm } from "@/lib/units";
 import { CUSTOM, type ExerciseLog, type WorkSet, exerciseDef } from "./exercises";
 import { MAX_KM } from "./workouts";
 
@@ -36,10 +36,21 @@ export function exercisesFromForm(exercises: readonly FormExercise[], unit: Weig
   return out;
 }
 
-/** Distanza in km, o undefined se vuota o fuori dai limiti. */
-export function distanceFromForm(text: string): number | undefined {
-  const km = parseNumber(text);
-  return Number.isFinite(km) && km > 0 && km <= MAX_KM ? Math.round(km * 100) / 100 : undefined;
+/** Distanza scritta (in km o miglia) → km, o undefined se vuota o fuori dai limiti. */
+export function distanceFromForm(text: string, unit: DistanceUnit = "km"): number | undefined {
+  const value = parseNumber(text);
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  const km = toKm(value, unit);
+  return km > 0 && km <= MAX_KM ? km : undefined;
+}
+
+/** Peso scritto in un'unità → lo stesso peso nell'altra (al cambio kg/lb durante l'allenamento). */
+export function convertWeightText(text: string, from: WeightUnit, to: WeightUnit): string {
+  const value = parseNumber(text);
+  if (from === to || !Number.isFinite(value) || value <= 0) return text;
+  const kg = from === "lb" ? value * 0.45359237 : value;
+  const out = to === "lb" ? kg / 0.45359237 : kg;
+  return String(Math.round(out * 10) / 10);
 }
 
 /** "5:07" da 307 secondi. */

@@ -6,7 +6,7 @@ import { Segmented } from "@/components/brain/Segmented";
 import { useI18n } from "@/i18n/client";
 import { interpolate } from "@/i18n/format";
 import { type SubmitResult, submitCorrection } from "@/lib/health/catalog/community";
-import { KJ_PER_KCAL, checkCorrection, toKcal } from "@/lib/health/catalog/corrections";
+import { KJ_PER_KCAL, checkCorrection, plausibleCorrection, toKcal } from "@/lib/health/catalog/corrections";
 import type { CatalogFood } from "@/lib/health/catalog/foods";
 import { useSession } from "@/lib/supabase/client";
 import { Notice } from "./Chip";
@@ -78,7 +78,9 @@ function CorrectionForm({ food, onClose }: { food: CatalogFood; onClose: () => v
     carbs: parseDecimal(macros.carbs),
     fat: parseDecimal(macros.fat),
   };
-  const check = checkCorrection(values);
+  const consistent = checkCorrection(values);
+  // Valori troppo lontani dalla tabella: l'app non li userebbe comunque (plausibleCorrection).
+  const check = consistent === "ok" && !plausibleCorrection(food, values) ? "tooFar" : consistent;
 
   function switchUnit(next: EnergyUnit) {
     if (next === energyUnit) return;
@@ -149,6 +151,7 @@ function CorrectionForm({ food, onClose }: { food: CatalogFood; onClose: () => v
       </div>
       {check === "invalid" && <Notice tone="warning">{interpolate(t.invalid, { unit })}</Notice>}
       {check === "inconsistent" && <Notice tone="warning">{t.inconsistent}</Notice>}
+      {check === "tooFar" && <Notice tone="warning">{t.tooFar}</Notice>}
       {state === "limit" && <Notice tone="error">{t.limit}</Notice>}
       {state === "error" && <Notice tone="error">{t.error}</Notice>}
       {state === "needAccount" && <Notice tone="error">{t.needAccount}</Notice>}
